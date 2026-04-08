@@ -1,0 +1,20 @@
+sources:
+  google_places:
+    type: api
+    refresh_mode: incremental
+    entities: [place, review]
+
+  osm_overpass:
+    type: api
+    refresh_mode: full_refresh
+    entities: [place]
+
+  sevilla_geo:
+    type: geo_dataset
+    refresh_mode: manual_snapshot
+    entities: [district, neighborhood]
+
+  yelp_open_dataset:
+    type: bulk_dataset
+    refresh_mode: manual_snapshot
+    entities: [place, review]
