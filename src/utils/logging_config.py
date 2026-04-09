@@ -1,26 +1,35 @@
 import logging
-from pathlib import Path
+from logging.handlers import RotatingFileHandler
+
+from src.config.settings import settings
 
 
 def setup_logger(name: str = "hidden_gems") -> logging.Logger:
-    log_dir = Path("data/artifacts/logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
+    settings.ensure_directories()
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
+    logger.propagate = False
 
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-        )
+    if logger.handlers:
+        return logger
 
-        file_handler = logging.FileHandler(log_dir / "pipeline.log", encoding="utf-8")
-        file_handler.setFormatter(formatter)
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
 
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
+    file_handler = RotatingFileHandler(
+        settings.logs_path / "pipeline.log",
+        maxBytes=2_000_000,
+        backupCount=3,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(formatter)
 
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
     return logger
