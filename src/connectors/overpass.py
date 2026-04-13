@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import time
 from typing import Any, Iterable
+
+import httpx
 
 from src.connectors.base import BaseConnector
 
 
 class OverpassConnector(BaseConnector):
     source_code = "osm_overpass"
+
+    RETRYABLE_STATUS_CODES = {429, 502, 503, 504}
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -97,6 +102,68 @@ class OverpassConnector(BaseConnector):
             "sample_tag_keys": sorted(sample_tag_keys)[:30],
         }
 
+    def _request_with_retry(
+        self,
+        *,
+        overpass_query: str,
+        clean_query_name: str,
+        max_attempts: int = 3,
+    ) -> dict[str, Any]:
+        last_exception: Exception | None = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                payload = self.request_json(
+                    method="POST",
+                    url=self.base_url,
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={"data": overpass_query},
+                )
+                return payload
+
+            except httpx.HTTPStatusError as exc:
+                last_exception = exc
+                status_code = exc.response.status_code
+
+                if status_code not in self.RETRYABLE_STATUS_CODES or attempt == max_attempts:
+                    raise
+
+                wait_seconds = 2 ** attempt
+                self.logger.warning(
+                    "Overpass devolvió status=%s | query_name=%s | intento=%s/%s | reintentando en %ss",
+                    status_code,
+                    clean_query_name,
+                    attempt,
+                    max_attempts,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+
+            except httpx.RequestError as exc:
+                last_exception = exc
+
+                if attempt == max_attempts:
+                    raise
+
+                wait_seconds = 2 ** attempt
+                self.logger.warning(
+                    "Error de red en Overpass | query_name=%s | intento=%s/%s | reintentando en %ss | error=%s",
+                    clean_query_name,
+                    attempt,
+                    max_attempts,
+                    wait_seconds,
+                    exc,
+                )
+                time.sleep(wait_seconds)
+
+        if last_exception is not None:
+            raise last_exception
+
+        raise RuntimeError("Fallo inesperado en _request_with_retry.")
+
     def run(
         self,
         *,
@@ -121,14 +188,9 @@ class OverpassConnector(BaseConnector):
         )
 
         try:
-            payload = self.request_json(
-                method="POST",
-                url=self.base_url,
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={"data": overpass_query},
+            payload = self._request_with_retry(
+                overpass_query=overpass_query,
+                clean_query_name=clean_query_name,
             )
 
             warnings = self._validate_payload(payload)

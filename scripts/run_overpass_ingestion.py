@@ -7,6 +7,7 @@ from typing import Iterable
 from src.connectors.overpass import OverpassConnector
 from src.utils.logging_config import setup_logger
 
+# script para ingestion del overpass
 
 logger = setup_logger(__name__)
 
