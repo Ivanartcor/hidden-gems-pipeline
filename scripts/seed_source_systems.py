@@ -50,20 +50,20 @@ SEED_SOURCES = [
 
     # De momento lo dejamos fuera para no mezclar aún fuentes con API key.
     # Cuando toque activarlo, basta con descomentar este bloque.
-    #
-    # {
-    #     "source_code": "google_places",
-    #     "source_name": "Google Places",
-    #     "source_type": "api",
-    #     "description": "Fuente dinámica principal para locales y reseñas recientes.",
-    #     "base_url": "https://maps.googleapis.com/",
-    #     "auth_type": "api_key",
-    #     "data_format_default": "json",
-    #     "refresh_mode_default": "incremental",
-    #     "supports_incremental": True,
-    #     "is_active": True,
-    #     "notes": "Se activará más adelante cuando entremos con la API real.",
-    # },
+    
+    {
+        "source_code": "google_places",
+        "source_name": "Google Places",
+        "source_type": "api",
+        "description": "Fuente dinámica para enriquecimiento y consolidación de locales gastronómicos.",
+        "base_url": "https://places.googleapis.com/v1",
+        "auth_type": "api_key",
+        "data_format_default": "json",
+        "refresh_mode_default": "incremental",
+        "supports_incremental": True,
+        "is_active": True,
+        "notes": "Fuente activada para la vertical Google Places con Places API New.",
+    },
 ]
 
 
