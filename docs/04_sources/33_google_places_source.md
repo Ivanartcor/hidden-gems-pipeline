@@ -1,5 +1,3 @@
-# `docs/33_google_places_source.md`
-
 # Fuente de datos: Google Places
 
 ## 1. Propósito de la fuente
@@ -12,7 +10,8 @@ Dentro del pipeline, Google Places no sustituye al modelo canónico ni se utiliz
 * enriquecer locales ya existentes procedentes de OSM / Overpass;
 * añadir identificadores externos estables mediante Google Place ID;
 * mejorar direcciones, coordenadas, categorías de origen y estado operativo;
-* preparar una base más rica para fases posteriores de NLP, extracción de platos y ranking por barrio.
+* enriquecer locales ya consolidados con reseñas reales mediante Place Details;
+* preparar una base más rica para fases posteriores de NLP, extracción de platos, sentimiento y ranking por barrio.
 
 La fuente se integra siguiendo el mismo enfoque arquitectónico del resto del proyecto:
 
@@ -22,10 +21,11 @@ fuente externa
 → source_run
 → raw_asset
 → staging
-→ NormalizedPlaceCandidate
-→ deduplicación
+→ normalización
+→ deduplicación / validación
 → importación canónica
-→ validación post-importación
+→ checks
+→ artifacts
 ```
 
 Google Places se utiliza mediante la API oficial, no mediante scraping.
@@ -36,12 +36,12 @@ Google Places se utiliza mediante la API oficial, no mediante scraping.
 
 Google Places tiene un rol distinto al de las otras fuentes ya integradas:
 
-| Fuente            | Rol principal                                          |
-| ----------------- | ------------------------------------------------------ |
-| Sevilla Geo       | Geometría oficial de barrios y distritos               |
-| OSM / Overpass    | Fuente abierta inicial de locales y POIs gastronómicos |
-| Google Places     | Fuente dinámica de descubrimiento y enriquecimiento    |
-| Yelp Open Dataset | Fuente de apoyo para NLP y análisis textual posterior  |
+| Fuente | Rol principal |
+|---|---|
+| Sevilla Geo | Geometría oficial de barrios y distritos |
+| OSM / Overpass | Fuente abierta inicial de locales y POIs gastronómicos |
+| Google Places | Fuente dinámica de descubrimiento, enriquecimiento y reseñas locales |
+| Yelp Open Dataset | Fuente de apoyo posterior para entrenamiento NLP |
 
 En el modelo de datos, Google Places se representa principalmente mediante:
 
@@ -49,9 +49,10 @@ En el modelo de datos, Google Places se representa principalmente mediante:
 * `source_run`, para registrar cada ejecución;
 * `raw_asset`, para conservar cada respuesta original de la API;
 * `place_source_ref`, para enlazar cada `place` canónico con su Google Place ID;
+* `review`, para almacenar reseñas reales de locales ya consolidados;
 * `validation_issue`, para registrar incidencias de calidad o importación.
 
-Google Places no escribe directamente de forma descontrolada sobre `place`. Primero pasa por una capa intermedia de candidatos normalizados y por deduplicación.
+Google Places no escribe directamente de forma descontrolada sobre `place` ni sobre `review`. Primero pasa por raw, staging, validación y deduplicación/importación controlada.
 
 ---
 
@@ -85,6 +86,8 @@ La fuente se registra en `hidden_gems.source_system` mediante el seed de fuentes
 }
 ```
 
+No se crea un `source_system` adicional para reviews. Las reseñas de Google siguen perteneciendo a la misma fuente `google_places`, diferenciándose por el `purpose` del `source_run` y por los scripts/artefactos específicos de reviews.
+
 ---
 
 ## 4. Configuración externa necesaria
@@ -93,7 +96,7 @@ Antes de utilizar la fuente en el repositorio, es necesario preparar Google Clou
 
 1. Crear un proyecto específico en Google Cloud.
 2. Activar facturación asociada al proyecto.
-3. Habilitar únicamente **Places API**.
+3. Habilitar **Places API**.
 4. Crear una API key.
 5. Restringir la API key a Places API.
 6. Configurar presupuestos y alertas.
@@ -105,9 +108,9 @@ Aunque el uso inicial se ha planteado para mantenerse dentro de límites control
 * pocas llamadas;
 * `max_result_count` bajo;
 * sin paginación inicial;
-* sin `Place Details` masivo;
-* sin reviews;
 * sin `FieldMask: *`;
+* sin Place Details masivo;
+* reviews solo de locales ya consolidados y por tandas pequeñas;
 * cuotas bajas y alertas activas.
 
 ---
@@ -150,7 +153,20 @@ google_places_base_url: str = "https://places.googleapis.com/v1"
 
 ---
 
-## 6. Endpoint utilizado inicialmente
+## 6. Modos de uso de la fuente
+
+Google Places se usa actualmente en dos modos controlados:
+
+| Modo | Endpoint | Objetivo | Resultado |
+|---|---|---|---|
+| Text Search | `POST /places:searchText` | Descubrir y consolidar locales | `place`, `place_source_ref`, categorías, barrio |
+| Place Details Reviews | `GET /places/{GOOGLE_PLACE_ID}` | Obtener reseñas de locales ya consolidados | `review` enlazada a `place` y `place_source_ref` |
+
+El primer modo alimenta el modelo canónico de locales. El segundo modo solo se puede ejecutar sobre locales que ya tienen `place_source_ref` de Google Places.
+
+---
+
+## 7. Endpoint Text Search
 
 La integración inicial utiliza **Text Search** de Places API New:
 
@@ -179,7 +195,7 @@ X-Goog-FieldMask: <campos solicitados>
 
 ---
 
-## 7. FieldMask utilizado
+## 8. FieldMask de Text Search
 
 Para controlar coste, tamaño de respuesta y estabilidad del pipeline, se utiliza un conjunto mínimo de campos:
 
@@ -209,7 +225,7 @@ No se utiliza:
 X-Goog-FieldMask: *
 ```
 
-Tampoco se solicitan inicialmente:
+En esta vertical base no se solicitan inicialmente:
 
 * reviews;
 * rating;
@@ -220,11 +236,11 @@ Tampoco se solicitan inicialmente:
 * precio;
 * atributos gastronómicos avanzados.
 
-Esos campos quedan reservados para una fase futura de enriquecimiento selectivo.
+Las reseñas se trabajan en una subvertical específica mediante Place Details y solo sobre locales ya consolidados.
 
 ---
 
-## 8. Estructura de respuesta esperada
+## 9. Estructura de respuesta Text Search esperada
 
 La respuesta mínima esperada tiene esta forma:
 
@@ -264,7 +280,96 @@ El pipeline valida que:
 
 ---
 
-## 9. Conector implementado
+## 10. Endpoint Place Details para reviews
+
+La subvertical de reviews utiliza **Place Details**:
+
+```text
+GET https://places.googleapis.com/v1/places/{GOOGLE_PLACE_ID}
+```
+
+El `GOOGLE_PLACE_ID` procede de:
+
+```text
+hidden_gems.place_source_ref.source_record_id
+```
+
+Para esta fase se solicita un FieldMask mínimo:
+
+```text
+id,displayName,reviews
+```
+
+Opcionalmente, para pruebas controladas, puede añadirse:
+
+```text
+rating,userRatingCount
+```
+
+mediante la opción:
+
+```powershell
+--include-rating-summary
+```
+
+---
+
+## 11. Estructura de respuesta Place Details Reviews
+
+La respuesta real de Place Details para reviews tiene esta forma:
+
+```json
+{
+  "id": "ChIJl5CETz9sEg0RBeilXxxRTFE",
+  "displayName": {
+    "text": "Bar El 25 Bodega",
+    "languageCode": "es"
+  },
+  "reviews": [
+    {
+      "name": "places/ChIJ.../reviews/...",
+      "relativePublishTimeDescription": "Hace 8 meses",
+      "rating": 5,
+      "text": {
+        "text": "Experiencia espectacular...",
+        "languageCode": "es"
+      },
+      "originalText": {
+        "text": "Experiencia espectacular...",
+        "languageCode": "es"
+      },
+      "authorAttribution": {
+        "displayName": "Ibra",
+        "uri": "https://www.google.com/maps/contrib/.../reviews",
+        "photoUri": "https://lh3.googleusercontent.com/..."
+      },
+      "publishTime": "2025-08-28T07:33:59.730025081Z",
+      "flagContentUri": "https://www.google.com/local/content/rap/report?...",
+      "googleMapsUri": "https://www.google.com/maps/reviews/data=..."
+    }
+  ]
+}
+```
+
+Campos principales utilizados:
+
+| Campo Google | Uso en Hidden Gems |
+|---|---|
+| `id` | `review.source_place_record_id` |
+| `reviews[].name` | señal de identidad externa de la review |
+| `reviews[].rating` | `review.rating_value` |
+| `reviews[].text.text` | `review.review_text_raw` |
+| `reviews[].text.languageCode` | `review.review_language` |
+| `reviews[].originalText.text` | texto original en staging |
+| `reviews[].authorAttribution.displayName` | `review.author_name_raw` |
+| `reviews[].authorAttribution.uri` | `review.author_uri` |
+| `reviews[].publishTime` | `review.review_created_at` |
+| `reviews[].relativePublishTimeDescription` | `review.relative_publish_time_description` |
+| `reviews[].googleMapsUri` | `review.source_review_url` |
+
+---
+
+## 12. Conector implementado
 
 El conector se encuentra en:
 
@@ -278,7 +383,7 @@ Clase principal:
 GooglePlacesConnector
 ```
 
-Responsabilidades:
+Responsabilidades para Text Search:
 
 * leer `GOOGLE_MAPS_API_KEY` desde settings;
 * construir el endpoint de Google Places;
@@ -290,11 +395,20 @@ Responsabilidades:
 * cerrar el run como completado o fallido;
 * devolver resumen de resultados.
 
+Responsabilidades para Place Details Reviews:
+
+* recibir un Google Place ID;
+* construir endpoint `GET /places/{place_id}`;
+* solicitar `id,displayName,reviews`;
+* guardar respuesta raw;
+* registrar `source_run.request_summary.purpose = place_details_reviews`;
+* devolver resumen de reviews recibidas.
+
 El conector no transforma, no deduplica y no importa directamente a tablas canónicas.
 
 ---
 
-## 10. Ingesta raw
+## 13. Ingesta raw
 
 Cada llamada a Google Places genera:
 
@@ -307,17 +421,23 @@ Cada llamada a Google Places genera:
 * `query_name`;
 * `request_signature_hash`.
 
-Ejemplo de ruta generada:
+Ejemplo de ruta de Text Search:
 
 ```text
 data/raw/google_places/2026/05/05/google_places_20260505T105915Z_xxxxxxxx/20260505T105916Z_google_places_text_search_....json
+```
+
+Ejemplo de ruta de Place Details Reviews:
+
+```text
+data/raw/google_places/2026/05/05/google_places_20260505T150554Z_xxxxxxxx/20260505T150555Z_google_places_details_....json
 ```
 
 Durante el desarrollo se detectó un problema de rutas largas en Windows. Para evitarlo, se acortó la generación de nombres en `RawStorage` y en los `query_name` generados por batch.
 
 ---
 
-## 11. Comprobación raw
+## 14. Comprobación raw Text Search
 
 Script:
 
@@ -353,7 +473,7 @@ data/artifacts/google_places_raw_qa/
 
 ---
 
-## 12. Transformación a candidato normalizado
+## 15. Transformación a candidato normalizado de local
 
 Transformer:
 
@@ -378,17 +498,17 @@ La transformación convierte cada elemento de `places` en un `NormalizedPlaceCan
 
 Campos principales mapeados:
 
-| Campo Google          | Campo candidato                              |
-| --------------------- | -------------------------------------------- |
-| `id`                  | `provenance.source_record_id`                |
-| `displayName.text`    | `names.display_name`                         |
-| `formattedAddress`    | `address.source_address_raw`                 |
-| `location.latitude`   | `location.latitude`                          |
-| `location.longitude`  | `location.longitude`                         |
-| `types`               | `classification.source_categories_raw`       |
+| Campo Google | Campo candidato |
+|---|---|
+| `id` | `provenance.source_record_id` |
+| `displayName.text` | `names.display_name` |
+| `formattedAddress` | `address.source_address_raw` |
+| `location.latitude` | `location.latitude` |
+| `location.longitude` | `location.longitude` |
+| `types` | `classification.source_categories_raw` |
 | categoría prioritaria | `classification.source_primary_category_raw` |
-| `businessStatus`      | `provenance.source_status_raw`               |
-| `googleMapsUri`       | `provenance.source_url`                      |
+| `businessStatus` | `provenance.source_status_raw` |
+| `googleMapsUri` | `provenance.source_url` |
 
 La salida se guarda en:
 
@@ -408,7 +528,7 @@ issues.json
 
 ---
 
-## 13. Criterios de calidad en staging
+## 16. Criterios de calidad en staging de locales
 
 Un candidato se considera `accepted` cuando tiene:
 
@@ -441,7 +561,7 @@ Cada candidato recibe un `completeness_score`, calculado a partir de señales co
 
 ---
 
-## 14. QA de staging
+## 17. QA de staging de locales
 
 Script:
 
@@ -477,7 +597,7 @@ data/artifacts/google_places_qa/
 
 ---
 
-## 15. Deduplicación intra-fuente
+## 18. Deduplicación intra-fuente de locales
 
 Deduplicador:
 
@@ -523,7 +643,7 @@ pair_evidences.json
 
 ---
 
-## 16. QA de deduplicación
+## 19. QA de deduplicación de locales
 
 Script:
 
@@ -558,7 +678,7 @@ data/artifacts/google_places_dedup_qa/
 
 ---
 
-## 17. Importación canónica
+## 20. Importación canónica de locales
 
 Importador:
 
@@ -600,11 +720,11 @@ La lógica de importación se apoya en:
 src/normalization/base_place_candidate_importer.py
 ```
 
-Esto permite compartir lógica común entre OSM Overpass, Google Places y futuras fuentes como Yelp.
+Esto permite compartir lógica común entre OSM Overpass, Google Places y futuras fuentes.
 
 ---
 
-## 18. Refactor del importador base
+## 21. Refactor del importador base
 
 Durante la integración de Google Places se detectó que `GooglePlacesImporter` heredaba provisionalmente de `OSMOverpassImporter`, lo cual funcionaba pero era conceptualmente incorrecto.
 
@@ -634,18 +754,9 @@ La clase base contiene:
 * registro de incidencias;
 * actualización de contadores de `source_run`.
 
-Cada importer concreto define:
-
-```python
-SOURCE_CODE
-SOURCE_LABEL
-CATEGORY_ASSIGNMENT_NOTE
-NEIGHBORHOOD_ASSIGNMENT_NOTE
-```
-
 ---
 
-## 19. Check post-importación
+## 22. Check post-importación de locales
 
 Script:
 
@@ -690,7 +801,86 @@ no_validation_issues_for_filtered_scope = true
 
 ---
 
-## 20. Orquestador individual completo
+## 23. Flujo de reseñas Google Places
+
+La fuente también soporta enriquecimiento de reseñas, pero solo para locales ya existentes.
+
+Flujo:
+
+```text
+place_source_ref google_places
+→ Google Place ID
+→ Place Details
+→ raw details
+→ NormalizedReviewCandidate
+→ check staging reviews
+→ importación en hidden_gems.review
+→ check import reviews
+```
+
+La tabla `review` fue ampliada con campos de trazabilidad y uso NLP:
+
+```text
+raw_asset_id
+source_place_record_id
+author_uri
+relative_publish_time_description
+source_payload_hash
+is_operational_review
+is_training_eligible
+```
+
+Una review de Google se guarda como:
+
+```text
+is_operational_review = true
+is_training_eligible = true
+```
+
+Esto indica que:
+
+* pertenece a un local real de Hidden Gems;
+* puede utilizarse como corpus local para fases futuras de NLP.
+
+---
+
+## 24. Scripts de reviews
+
+Scripts principales:
+
+```text
+scripts/run_google_places_place_details.py
+scripts/transform_google_places_reviews.py
+scripts/check_google_places_reviews_staging.py
+scripts/import_google_places_reviews.py
+scripts/check_google_places_reviews_import.py
+scripts/load_google_places_reviews_pipeline.py
+scripts/run_google_places_reviews_batch.py
+scripts/check_google_places_reviews_batch.py
+```
+
+Artefactos principales:
+
+```text
+data/staging/google_places_reviews/<raw_asset_id>/summary.json
+data/staging/google_places_reviews/<raw_asset_id>/accepted_reviews.json
+data/staging/google_places_reviews/<raw_asset_id>/rejected_reviews.json
+data/staging/google_places_reviews/<raw_asset_id>/issues.json
+data/staging/google_places_reviews/<raw_asset_id>/import/import_summary.json
+data/staging/google_places_reviews/<raw_asset_id>/import/pipeline_summary.json
+data/artifacts/google_places_reviews_batches/<batch_name>/batch_summary.json
+data/artifacts/google_places_reviews_batches/<batch_name>/reviews_batch_check.json
+```
+
+La documentación completa de esta subvertical se mantiene en:
+
+```text
+docs/43_vertical_google_places_reviews.md
+```
+
+---
+
+## 25. Orquestador individual de Text Search
 
 Script:
 
@@ -732,19 +922,9 @@ python -m scripts.load_google_places_pipeline `
   --skip-import
 ```
 
-Genera:
-
-```text
-data/staging/google_places/<raw_asset_id>/summary.json
-data/staging/google_places/<raw_asset_id>/deduplication/dedup_summary.json
-data/staging/google_places/<raw_asset_id>/deduplication/import/import_summary.json
-data/staging/google_places/<raw_asset_id>/deduplication/import/pipeline_summary.json
-data/artifacts/google_places_pipeline/<raw_asset_id>_pipeline_summary.json
-```
-
 ---
 
-## 21. Configuración de consultas por barrio
+## 26. Configuración de consultas por barrio
 
 Se creó configuración externa en:
 
@@ -799,7 +979,7 @@ La asignación final al barrio no depende de ese texto, sino de coordenadas y `p
 
 ---
 
-## 22. Batch por barrios
+## 27. Batch por barrios Text Search
 
 Script:
 
@@ -869,17 +1049,37 @@ python -m scripts.run_google_places_neighborhood_batch `
   --max-total-queries 10
 ```
 
-Artefactos del batch:
+---
+
+## 28. Comentario operativo del batch de Text Search
+
+El script `run_google_places_neighborhood_batch.py` incluye un bloque de comentarios con ejemplos de uso:
 
 ```text
-data/artifacts/google_places_batches/<batch_name>/plan.json
-data/artifacts/google_places_batches/<batch_name>/results.json
-data/artifacts/google_places_batches/<batch_name>/batch_summary.json
+MODO 1: dry-run
+MODO 2: ejecución sin importación
+MODO 3: ejecución con importación
+MODO 4: piloto de cinco barrios
+MODO 5: ejecución por distrito
+MODO 6: plantilla personalizada
+```
+
+Reglas recomendadas:
+
+```text
+1. Empezar siempre con --dry-run.
+2. Probar después con --skip-import.
+3. Importar solo cuando el batch sin importación sea correcto.
+4. Mantener max-result-count bajo.
+5. No usar FieldMask amplio ni pedir reviews en esta vertical base.
+6. No lanzar toda Sevilla de golpe.
+7. Escalar por tandas pequeñas de barrios o distritos.
+8. Revisar Google Cloud usage tras tandas reales.
 ```
 
 ---
 
-## 23. Check global de batch
+## 29. Check global de batch Text Search
 
 Script:
 
@@ -921,7 +1121,7 @@ data/artifacts/google_places_batches/<batch_name>/batch_check.json
 
 ---
 
-## 24. Pilotos ejecutados y validados
+## 30. Pilotos ejecutados y validados
 
 Durante la implementación se validaron progresivamente:
 
@@ -1007,20 +1207,38 @@ Configuración:
 10 llamadas máximas
 sin paginación
 sin Details
-sin reviews
+sin reviews en Text Search
 ```
 
 Resultado: ejecución y check global correctos.
 
+### Primera tanda de reviews
+
+Después de consolidar locales, se validó la subvertical de reviews:
+
+```text
+5 locales
+25 reviews
+0 errores
+0 validation issues
+reviews enlazadas a place/place_source_ref/barrio
+```
+
+La documentación completa está en:
+
+```text
+docs/43_vertical_google_places_reviews.md
+```
+
 ---
 
-## 25. Decisiones de seguridad y coste
+## 31. Decisiones de seguridad y coste
 
 Para esta fuente se han fijado las siguientes reglas:
 
 ```text
 1. No usar FieldMask: *.
-2. No pedir reviews en la fase de adquisición base.
+2. No pedir reviews en la fase de adquisición base con Text Search.
 3. No pedir Place Details de forma masiva.
 4. No activar paginación inicialmente.
 5. Mantener max_result_count bajo.
@@ -1029,48 +1247,49 @@ Para esta fuente se han fijado las siguientes reglas:
 8. Revisar uso tras cada tanda.
 9. No subir nunca la API key.
 10. Mantener trazabilidad raw de cada respuesta.
+11. Pedir reviews solo para locales ya consolidados.
+12. Ejecutar reviews por tandas pequeñas de locales.
 ```
 
 El escalado se realizará por tandas pequeñas, nunca descargando toda Sevilla de golpe.
 
 ---
 
-## 26. Limitaciones actuales
+## 32. Limitaciones actuales
 
-La vertical Google Places actual tiene estas limitaciones intencionadas:
+La fuente Google Places actual tiene estas limitaciones intencionadas:
 
-* solo usa Text Search;
-* no usa Nearby Search;
+* Text Search no usa Nearby Search;
 * no usa grid/círculos;
 * no pagina resultados;
-* no solicita reviews;
-* no solicita rating ni número de reseñas;
 * no solicita teléfonos ni webs;
-* no realiza enriquecimiento avanzado;
+* no realiza enriquecimiento masivo de Details;
+* las reviews se solicitan solo para locales ya importados;
+* Google no devuelve necesariamente todas las reseñas históricas de un local;
 * no analiza platos todavía;
-* no ejecuta NLP.
+* no ejecuta NLP todavía.
 
 Estas limitaciones son aceptadas porque esta fase busca construir una adquisición segura, trazable y reproducible.
 
 ---
 
-## 27. Próximas mejoras posibles
+## 33. Próximas mejoras posibles
 
 No forman parte de esta fase, pero quedan identificadas:
 
 * incorporar Nearby Search con estrategia espacial controlada;
-* añadir paginación limitada;
-* crear enriquecimiento selectivo con Place Details;
+* añadir paginación limitada para Text Search si es necesario;
+* crear enriquecimiento selectivo con Place Details para más campos;
 * solicitar rating y número de reseñas solo para locales consolidados;
-* estudiar uso controlado de reviews;
+* ampliar tandas de reviews de forma controlada;
 * crear análisis de cobertura por barrio;
 * mejorar alias de barrios según resultados reales;
 * integrar métricas BI para calidad de fuente;
-* preparar Yelp como fuente de apoyo textual.
+* preparar Yelp como fuente de apoyo textual para NLP.
 
 ---
 
-## 28. Estado final de la fuente
+## 34. Estado final de la fuente
 
 La fuente Google Places queda integrada en estado operativo inicial:
 
@@ -1078,6 +1297,7 @@ La fuente Google Places queda integrada en estado operativo inicial:
 [OK] API key configurada localmente
 [OK] source_system activado
 [OK] conector implementado
+[OK] Text Search operativo
 [OK] raw trazable
 [OK] check raw
 [OK] transformación a NormalizedPlaceCandidate
@@ -1091,7 +1311,10 @@ La fuente Google Places queda integrada en estado operativo inicial:
 [OK] aliases/search_name por barrio
 [OK] check global de batch
 [OK] piloto de cinco barrios validado
+[OK] Place Details Reviews operativo
+[OK] reviews importadas en hidden_gems.review
+[OK] batch de reviews validado
 ```
 
-La fuente queda preparada para seguir alimentando el modelo canónico de Hidden Gems de forma incremental y controlada.
+La fuente queda preparada para seguir alimentando el modelo canónico de Hidden Gems de forma incremental y controlada, y para aportar reseñas locales reales a las futuras fases de NLP.
 

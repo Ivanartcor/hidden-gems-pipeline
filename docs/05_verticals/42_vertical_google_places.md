@@ -16,7 +16,14 @@ La vertical permite:
 * importar candidatos al modelo canónico;
 * enlazar Google Places con `place` mediante `place_source_ref`;
 * ejecutar batches por barrios;
-* mantener control de coste, errores y trazabilidad.
+* mantener control de coste, errores y trazabilidad;
+* dejar locales preparados para una subvertical posterior de reseñas mediante Place Details.
+
+La parte de reseñas se documenta en un archivo específico:
+
+```text
+docs/43_vertical_google_places_reviews.md
+```
 
 ---
 
@@ -36,7 +43,7 @@ external source
 → artifacts
 ```
 
-Aplicado a Google Places:
+Aplicado a Google Places Text Search:
 
 ```text
 Google Places API
@@ -52,11 +59,19 @@ Google Places API
 → checks + artifacts
 ```
 
+La salida más importante de esta vertical es:
+
+```text
+place + place_source_ref.source_record_id = Google Place ID
+```
+
+Ese identificador permite después enriquecer locales ya consolidados con reviews mediante la vertical Google Places Reviews.
+
 ---
 
 ## 3. Principio de diseño
 
-La vertical se ha construido con varios principios:
+La vertical se ha construido con varios principios.
 
 ### 3.1. No sobrescribir directamente el modelo canónico
 
@@ -92,7 +107,7 @@ La vertical evita:
 
 * paginación masiva;
 * campos avanzados;
-* reviews;
+* reviews dentro del flujo base de Text Search;
 * `FieldMask: *`;
 * batches grandes.
 
@@ -112,7 +127,7 @@ Clase:
 GooglePlacesConnector
 ```
 
-Responsabilidades:
+Responsabilidades para esta vertical:
 
 * validar API key;
 * construir endpoint;
@@ -122,6 +137,8 @@ Responsabilidades:
 * guardar `raw_asset`;
 * registrar errores;
 * devolver resumen.
+
+El mismo conector también contiene el método `run_place_details(...)`, usado por la subvertical de reviews, pero el flujo principal de este documento se centra en Text Search.
 
 ---
 
@@ -401,6 +418,15 @@ Script:
 scripts/run_google_places_neighborhood_batch.py
 ```
 
+Este script incluye un bloque de comentario operativo con ejemplos de uso para:
+
+* `dry-run`;
+* ejecución sin importación;
+* ejecución con importación;
+* piloto de cinco barrios;
+* ejecución por distrito;
+* plantillas personalizadas.
+
 ---
 
 ## 10. Selección por barrios concretos
@@ -622,8 +648,8 @@ Configuración:
 5 resultados por consulta
 10 llamadas máximas
 sin paginación
-sin Details
-sin reviews
+sin Place Details
+sin reviews en Text Search
 ```
 
 Comando:
@@ -654,57 +680,108 @@ Resultado: correcto.
 
 ---
 
-## 18. Problemas detectados y soluciones aplicadas
+## 18. Relación con Google Places Reviews
 
-### 18.1. Quoting de PowerShell con curl
+Esta vertical base consolida locales y crea `place_source_ref` de Google.
+
+La subvertical de reviews usa precisamente esas referencias:
+
+```text
+place_source_ref.source_record_id
+→ Google Place ID
+→ Place Details
+→ reviews
+→ hidden_gems.review
+```
+
+No se pueden importar reviews de locales que no existan previamente en `place` y `place_source_ref`.
+
+Esto mantiene el modelo limpio:
+
+```text
+Google Places Text Search
+→ descubre local
+→ place + place_source_ref
+
+Google Places Reviews
+→ enriquece local existente
+→ review enlazada a place
+```
+
+La documentación completa de la subvertical está en:
+
+```text
+docs/43_vertical_google_places_reviews.md
+```
+
+---
+
+## 19. Problemas detectados y soluciones aplicadas
+
+### 19.1. Quoting de PowerShell con curl
 
 La primera prueba con `curl` falló por cómo PowerShell interpretaba el JSON. Se resolvió probando la API con Python y `requests`.
 
-### 18.2. Certificado SSL en curl de Windows
+### 19.2. Certificado SSL en curl de Windows
 
 Apareció un error `CRYPT_E_NO_REVOCATION_CHECK` al usar `curl.exe`. Se evitó usando Python para las pruebas reales.
 
-### 18.3. Rutas largas en Windows
+### 19.3. Rutas largas en Windows
 
 Durante batches con `query_name` largo, `RawStorage` falló al escribir ficheros raw. Se solucionó acortando:
 
 * `_slugify` de `RawStorage`;
 * `query_name` generado por batch.
 
-### 18.4. Nombres de barrio con tildes
+### 19.4. Nombres de barrio con tildes
 
 `Nervión` no coincidía con `NERVION`. Se añadió normalización sin tildes mediante `unicodedata`.
 
-### 18.5. Barrios administrativos poco naturales
+### 19.5. Barrios administrativos poco naturales
 
 `TRIANA CASCO ANTIGUO` no era ideal como texto de búsqueda. Se añadió `search_name` mediante YAML de alias.
 
-### 18.6. Dependencia conceptual del importer de OSM
+### 19.6. Dependencia conceptual del importer de OSM
 
 Google Places heredaba provisionalmente de `OSMOverpassImporter`. Se refactorizó a `BasePlaceCandidateImporter`.
 
+### 19.7. Enriquecimiento posterior con reviews
+
+Al añadir reviews se decidió no mezclar la lógica de Text Search con la de Place Details Reviews. Se creó una vertical separada para mantener:
+
+* coste controlado;
+* trazabilidad clara;
+* reviews solo para locales ya consolidados;
+* separación entre descubrimiento de locales y enriquecimiento textual.
+
 ---
 
-## 19. Reglas actuales de escalado
+## 20. Reglas actuales de escalado
 
 La vertical queda cerrada con estas reglas:
 
 ```text
 1. Escalar por barrios, no por grid/círculos todavía.
-2. Usar Text Search.
+2. Usar Text Search para descubrimiento de locales.
 3. Usar aliases/search_name.
 4. Ejecutar batches pequeños.
 5. No activar paginación.
-6. No pedir reviews.
+6. No pedir reviews en el flujo base de Text Search.
 7. No pedir Details masivos.
 8. Mantener max_result_count bajo.
 9. Comprobar batch después de cada ejecución.
 10. Revisar uso en Google Cloud.
 ```
 
+Para reviews, la regla adicional es:
+
+```text
+Pedir reviews solo de locales ya importados y por tandas pequeñas.
+```
+
 ---
 
-## 20. Flujo recomendado de uso
+## 21. Flujo recomendado de uso
 
 ### Paso 1. Probar plan
 
@@ -753,9 +830,29 @@ python -m scripts.check_google_places_batch `
   --save-artifact
 ```
 
+### Paso 6. Enriquecimiento posterior con reviews
+
+Cuando los locales ya existen en `place` y `place_source_ref`, se puede ejecutar la vertical de reviews:
+
+```powershell
+python -m scripts.run_google_places_reviews_batch `
+  --batch-name gp_reviews_batch_import_v1 `
+  --limit-places 5 `
+  --max-total-places 5 `
+  --max-errors 5
+```
+
+Y validar:
+
+```powershell
+python -m scripts.check_google_places_reviews_batch `
+  --batch-name gp_reviews_batch_import_v1 `
+  --save-artifact
+```
+
 ---
 
-## 21. Estado final de la vertical
+## 22. Estado final de la vertical
 
 La vertical Google Places queda finalizada en su primera versión funcional:
 
@@ -778,20 +875,21 @@ La vertical Google Places queda finalizada en su primera versión funcional:
 [OK] YAML de aliases/query plan
 [OK] Check global de batch
 [OK] Piloto de cinco barrios validado
+[OK] Locales preparados para enrichment con reviews
 ```
 
 La vertical queda lista para alimentar el modelo canónico de Hidden Gems mediante adquisiciones incrementales, controladas y trazables.
 
 ---
 
-## 22. Fuera de alcance de esta vertical
+## 23. Fuera de alcance de esta vertical
 
-No se incluye todavía:
+No se incluye en esta vertical base:
 
 * Nearby Search;
 * grid/círculos;
 * Place Details masivo;
-* reviews;
+* importación de reviews dentro del flujo Text Search;
 * scraping;
 * ranking de platos;
 * extracción NLP;
@@ -799,14 +897,20 @@ No se incluye todavía:
 * API pública;
 * dashboard BI.
 
-Estas fases pertenecen a bloques posteriores del proyecto.
+La importación de reviews existe como subvertical separada:
+
+```text
+docs/43_vertical_google_places_reviews.md
+```
 
 ---
 
-## 23. Conclusión
+## 24. Conclusión
 
 La vertical Google Places completa una parte clave del pipeline de Hidden Gems: la incorporación de una fuente dinámica y comercial de alta cobertura, integrada de forma segura, incremental y trazable.
 
 El sistema ya permite obtener datos reales de Google Places, almacenarlos como raw auditable, normalizarlos a un contrato común, deduplicarlos, importarlos al modelo canónico y validar todo el proceso tanto a nivel individual como por batch de barrios.
+
+Además, la creación de `place_source_ref` con Google Place ID deja preparada la base para enriquecer locales con reviews reales mediante la vertical Google Places Reviews.
 
 Gracias a esta vertical, Hidden Gems dispone de una base más sólida para fases posteriores de enriquecimiento, NLP, extracción de platos y ranking por barrio.
