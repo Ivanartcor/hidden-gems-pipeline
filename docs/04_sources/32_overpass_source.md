@@ -1,5 +1,3 @@
-# docs/04_sources/32_overpass_source.md
-
 # OSM Overpass Source
 
 ## 1. Descripción general

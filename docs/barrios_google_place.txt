@@ -1,0 +1,110 @@
+barrios disponibles:
+Bellavista - La Palmera | BARRIADA DE PINEDA
+Bellavista - La Palmera | BELLAVISTA
+Bellavista - La Palmera | ELCANO-BERMEJALES
+Bellavista - La Palmera | HELIOPOLIS
+Bellavista - La Palmera | PEDRO SALVADOR-LAS PALMERITAS-GUADAIRA
+Bellavista - La Palmera | SECTOR SUR-LA PALMERA-REINA MERCEDES
+Casco Antiguo | ALFALFA
+Casco Antiguo | ARENAL
+Casco Antiguo | ENCARNACIÓN-REGINA
+Casco Antiguo | FERIA
+Casco Antiguo | MUSEO
+Casco Antiguo | SAN BARTOLOME
+Casco Antiguo | SAN GIL
+Casco Antiguo | SAN JULIAN
+Casco Antiguo | SAN LORENZO
+Casco Antiguo | SAN VICENTE
+Casco Antiguo | SANTA CATALINA
+Casco Antiguo | SANTA CRUZ
+Cerro - Amate | AMATE
+Cerro - Amate | EL CERRO
+Cerro - Amate | JUAN XXIII
+Cerro - Amate | LA PLATA
+Cerro - Amate | LOS PAJAROS
+Cerro - Amate | PALMETE
+Cerro - Amate | ROCHELAMBERT
+Cerro - Amate | SANTA AURELIA-CANTABRICO-ATLANTICO-LA ROMERIA
+Este - Alcosa - Torreblanca | COLORES, ENTREPARQUES
+Este - Alcosa - Torreblanca | PALACIO DE CONGRESOS, URBADIEZ, ENTREPUENTES
+Este - Alcosa - Torreblanca | PARQUE ALCOSA-JARDINES DEL EDÉN
+Este - Alcosa - Torreblanca | TORREBLANCA
+Los Remedios | ISLA DE GARZA
+Los Remedios | LOS REMEDIOS
+Los Remedios | TABLADA
+Macarena | BEGOÑA-SANTA CATALINA
+Macarena | CAMPOS DE SORIA
+Macarena | CISNEO ALTO-SANTA MARIA DE GRACIA
+Macarena | CRUZ ROJA-CAPUCHINOS
+Macarena | DOCTOR BARRAQUER-GRUPO RENFE-POLICLINICO
+Macarena | EL CARMEN
+Macarena | EL CEREZO
+Macarena | EL ROCIO
+Macarena | EL TORREJON
+Macarena | HERMANDADES-LA CARRASCA
+Macarena | LA BARZOLA
+Macarena | LA PALMILLA-DOCTOR MARAÑON
+Macarena | LA PAZ-LAS GOLONDRINAS
+Macarena | LAS AVENIDAS
+Macarena | LEON XIII-LOS NARANJOS
+Macarena | LOS PRINCIPES-LA FONTANILLA
+Macarena | MACARENA TRES HUERTAS-MACARENA CINCO
+Macarena | PINO FLORES
+Macarena | PIO XII
+Macarena | POLIGONO NORTE
+Macarena | RETIRO OBRERO
+Macarena | SANTA JUSTA Y RUFINA-PARQUE MIRAFLORES
+Macarena | SANTA MARIA DE ORDAS-SAN NICOLAS
+Macarena | VILLEGAS
+Nervión | CIUDAD JARDIN
+Nervión | HUERTA DEL PILAR
+Nervión | LA BUHAIRA
+Nervión | LA CALZADA
+Nervión | LA FLORIDA
+Nervión | NERVION
+Nervión | SAN BERNARDO
+Nervión | SAN ROQUE
+Norte | AEROPUERTO VIEJO
+Norte | BARRIADA PINO MONTANO
+Norte | CONSOLACION
+Norte | EL GORDILLO
+Norte | LA BACHILLERA
+Norte | LAS ALMENAS
+Norte | LAS NACIONES-PARQUE ATLANTICO-LAS DALIAS
+Norte | LOS ARCOS
+Norte | LOS CARTEROS
+Norte | SAN DIEGO
+Norte | SAN JERONIMO
+Norte | SAN MATIAS
+Norte | VALDEZORRAS
+San Pablo - Santa Justa | ARBOL GORDO
+San Pablo - Santa Justa | EL FONTANAL-MARIA AUXILIADORA-CARRETERA DE CARMONA
+San Pablo - Santa Justa | HUERTA DE SANTA TERESA
+San Pablo - Santa Justa | LA CORZA
+San Pablo - Santa Justa | LAS HUERTAS
+San Pablo - Santa Justa | SAN CARLOS-TARTESSOS
+San Pablo - Santa Justa | SAN JOSE OBRERO
+San Pablo - Santa Justa | SAN PABLO A Y B
+San Pablo - Santa Justa | SAN PABLO C
+San Pablo - Santa Justa | SAN PABLO D Y E
+San Pablo - Santa Justa | SANTA CLARA
+San Pablo - Santa Justa | ZODIACO
+Sur | AVENIDA DE LA PAZ
+Sur | BAMI
+Sur | EL JUNCAL-HISPALIS
+Sur | EL PLANTINAR
+Sur | EL PORVENIR
+Sur | EL PRADO-PARQUE MARIA LUISA
+Sur | FELIPE II-LOS DIEZ MANDAMIENTOS
+Sur | GIRALDA SUR
+Sur | HUERTA DE LA SALUD
+Sur | LA OLIVA
+Sur | LAS LETANIAS
+Sur | POLIGONO SUR
+Sur | TABLADILLA-LA ESTRELLA
+Sur | TIRO DE LINEA-SANTA GENOVEVA
+Triana | BARRIO LEON
+Triana | EL TARDON-EL CARMEN
+Triana | TRIANA CASCO ANTIGUO
+Triana | TRIANA ESTE
+Triana | TRIANA OESTE

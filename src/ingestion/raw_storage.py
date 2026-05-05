@@ -33,11 +33,11 @@ class RawStorage:
         return datetime.now(timezone.utc)
 
     @staticmethod
-    def _slugify(value: str) -> str:
+    def _slugify(value: str, max_length: int = 48) -> str:
         value = value.strip().lower()
         value = re.sub(r"[^\w\s-]", "", value, flags=re.UNICODE)
         value = re.sub(r"[-\s]+", "_", value)
-        return value[:80] or "asset"
+        return value[:max_length].strip("_") or "asset"
 
     @staticmethod
     def _build_asset_code(source_code: str) -> str:
@@ -52,7 +52,7 @@ class RawStorage:
         asset_name: str,
         file_format: str,
     ) -> Path:
-        safe_name = self._slugify(asset_name)
+        safe_name = self._slugify(asset_name, max_length=48)
         safe_ext = file_format.lower().lstrip(".")
         timestamp = self._utc_now().strftime("%Y%m%dT%H%M%SZ")
         token = uuid.uuid4().hex[:8]

@@ -1,0 +1,71 @@
+version: 1
+
+description: >
+  Plan de consultas controladas para Google Places Text Search.
+  Este archivo separa los nombres oficiales de barrios de los nombres
+  usados para búsqueda textual en Google Places.
+
+defaults:
+  language_code: es
+  region_code: ES
+  max_result_count: 5
+  queries_per_neighborhood: 2
+  sleep_seconds: 1.0
+
+field_mask:
+  - places.id
+  - places.displayName
+  - places.formattedAddress
+  - places.location
+  - places.types
+  - places.businessStatus
+  - places.googleMapsUri
+
+text_search:
+  query_templates:
+    - "restaurantes en {search_name}, Sevilla"
+    - "bares de tapas en {search_name}, Sevilla"
+    - "cafeterías en {search_name}, Sevilla"
+
+neighborhood_aliases:
+  # Nervión
+  NERVION: "Nervión"
+  CIUDAD JARDIN: "Ciudad Jardín"
+  LA BUHAIRA: "La Buhaira"
+  LA CALZADA: "La Calzada"
+  SAN BERNARDO: "San Bernardo"
+  SAN ROQUE: "San Roque"
+  LA FLORIDA: "La Florida"
+  HUERTA DEL PILAR: "Huerta del Pilar"
+
+  # Triana
+  BARRIO LEON: "Barrio León"
+  EL TARDON-EL CARMEN: "El Tardón, Triana"
+  TRIANA CASCO ANTIGUO: "Triana"
+  TRIANA ESTE: "Triana Este"
+  TRIANA OESTE: "Triana Oeste"
+
+  # Casco Antiguo
+  ALFALFA: "Alfalfa"
+  ARENAL: "El Arenal"
+  ENCARNACIÓN-REGINA: "Encarnación Regina"
+  FERIA: "Calle Feria"
+  MUSEO: "Museo de Bellas Artes"
+  SAN BARTOLOME: "San Bartolomé"
+  SAN GIL: "San Gil"
+  SAN JULIAN: "San Julián"
+  SAN LORENZO: "San Lorenzo"
+  SAN VICENTE: "San Vicente"
+  SANTA CATALINA: "Santa Catalina"
+  SANTA CRUZ: "Santa Cruz"
+
+  # Los Remedios
+  LOS REMEDIOS: "Los Remedios"
+  TABLADA: "Tablada"
+  ISLA DE GARZA: "Isla de la Cartuja"
+
+  # Sur
+  EL PORVENIR: "El Porvenir"
+  BAMI: "Bami"
+  EL PRADO-PARQUE MARIA LUISA: "Prado de San Sebastián"
+  HUERTA DE LA SALUD: "Huerta de la Salud"
