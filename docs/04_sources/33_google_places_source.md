@@ -11,7 +11,7 @@ Dentro del pipeline, Google Places no sustituye al modelo canónico ni se utiliz
 * añadir identificadores externos estables mediante Google Place ID;
 * mejorar direcciones, coordenadas, categorías de origen y estado operativo;
 * enriquecer locales ya consolidados con reseñas reales mediante Place Details;
-* preparar una base más rica para fases posteriores de NLP, extracción de platos, sentimiento y ranking por barrio.
+* preparar una base más rica para aplicar el módulo IA ya prototipado: extracción de platos, sentimiento por mención, agregación de señales y ranking por barrio.
 
 La fuente se integra siguiendo el mismo enfoque arquitectónico del resto del proyecto:
 
@@ -41,7 +41,7 @@ Google Places tiene un rol distinto al de las otras fuentes ya integradas:
 | Sevilla Geo | Geometría oficial de barrios y distritos |
 | OSM / Overpass | Fuente abierta inicial de locales y POIs gastronómicos |
 | Google Places | Fuente dinámica de descubrimiento, enriquecimiento y reseñas locales |
-| Yelp Open Dataset | Fuente de apoyo posterior para entrenamiento NLP |
+| Yelp Open Dataset | Fuente de apoyo IA/NLP y prototipo ya integrado |
 
 En el modelo de datos, Google Places se representa principalmente mediante:
 
@@ -1273,7 +1273,43 @@ Estas limitaciones son aceptadas porque esta fase busca construir una adquisici�
 
 ---
 
-## 33. Próximas mejoras posibles
+## 33. Relación con el módulo IA integrado
+
+Google Places y Google Places Reviews son la vía natural para pasar del prototipo Yelp al caso real de Sevilla.
+
+El módulo IA ya validado con Yelp permite el flujo:
+
+```text
+review
+→ dish_mention
+→ dish_mention_sentiment
+→ dish_place_signal
+→ hidden_gem_candidate
+```
+
+En Google Reviews, la diferencia es que las reseñas sí están enlazadas a locales reales de Sevilla:
+
+```text
+Google Review
+→ review
+→ place
+→ place_neighborhood_assignment
+→ neighborhood / district
+```
+
+Por tanto, el siguiente paso natural será exportar reviews reales desde `hidden_gems.review` mediante un script específico, analizar volumen/idioma y aplicar una versión adaptada del flujo IA.
+
+El ranking productivo esperado no será `yelp_prototype`, sino:
+
+```text
+ranking_scope = sevilla_neighborhood
+is_production_ready = true
+neighborhood_id IS NOT NULL
+```
+
+---
+
+## 34. Próximas mejoras posibles
 
 No forman parte de esta fase, pero quedan identificadas:
 
@@ -1285,11 +1321,14 @@ No forman parte de esta fase, pero quedan identificadas:
 * crear análisis de cobertura por barrio;
 * mejorar alias de barrios según resultados reales;
 * integrar métricas BI para calidad de fuente;
-* preparar Yelp como fuente de apoyo textual para NLP.
+* crear `export_reviews_for_ai.py` para generar corpus IA desde `hidden_gems.review`;
+* analizar idioma y volumen de Google Reviews locales;
+* adaptar la detección de platos y sentimiento a español/multilingüe;
+* calcular señales y ranking por barrio sobre datos reales de Sevilla.
 
 ---
 
-## 34. Estado final de la fuente
+## 35. Estado final de la fuente
 
 La fuente Google Places queda integrada en estado operativo inicial:
 
@@ -1316,5 +1355,5 @@ La fuente Google Places queda integrada en estado operativo inicial:
 [OK] batch de reviews validado
 ```
 
-La fuente queda preparada para seguir alimentando el modelo canónico de Hidden Gems de forma incremental y controlada, y para aportar reseñas locales reales a las futuras fases de NLP.
+La fuente queda preparada para seguir alimentando el modelo canónico de Hidden Gems de forma incremental y controlada, y para aportar reseñas locales reales a la aplicación futura del módulo IA sobre Sevilla.
 

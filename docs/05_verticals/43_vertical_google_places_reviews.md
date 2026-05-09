@@ -14,7 +14,7 @@ El objetivo principal es obtener comentarios asociados a locales reales de Sevil
 * permitir, más adelante, extracción de platos mencionados;
 * permitir análisis de sentimiento por comentario o por plato;
 * conectar reseñas con barrio y distrito mediante el modelo geográfico existente;
-* servir como base local previa a la fase posterior con Yelp Open Dataset.
+* servir como base local para aplicar posteriormente modelos, reglas y señales desarrolladas inicialmente con Yelp Open Dataset como prototipo IA.
 
 Esta vertical no sustituye a Yelp como corpus amplio de entrenamiento. Google Places Reviews se utiliza primero como fuente de comentarios reales y locales asociados a los locales del sistema.
 
@@ -323,7 +323,7 @@ Esto significa:
 * la reseña está asociada a un local real del modelo canónico;
 * la reseña puede utilizarse más adelante como ejemplo local para NLP.
 
-Cuando se integre Yelp Open Dataset en una fase posterior, el enfoque será diferente. Yelp se usará como corpus amplio de entrenamiento, no como fuente operativa de reviews vinculadas a locales de Sevilla.
+Yelp Open Dataset ya se ha integrado como corpus externo y prototipo IA, pero con una naturaleza diferente. Yelp se utiliza para entrenamiento, validación e integración prototipo del módulo IA, no como fuente productiva de reviews de Sevilla. Google Places Reviews sigue siendo la fuente local y operativa sobre la que deberá aplicarse el sistema IA en la fase Sevilla.
 
 ---
 
@@ -1221,10 +1221,12 @@ La vertical tiene varias limitaciones asumidas:
 * no se usa paginación de reviews;
 * no se scraping;
 * no se solicitan reviews de locales no consolidados;
-* no se hace análisis NLP todavía;
-* no se extraen platos todavía;
-* no se calcula sentimiento todavía;
-* no se calcula ranking por barrio todavía.
+* esta vertical no ejecuta análisis NLP directamente;
+* esta vertical no extrae platos directamente;
+* esta vertical no calcula sentimiento por plato directamente;
+* esta vertical no calcula ranking por barrio directamente.
+
+Estas tareas ya existen como módulo IA prototipo en el repositorio, pero todavía no se han aplicado de forma productiva sobre Google Reviews de Sevilla.
 
 Estas limitaciones son adecuadas para esta fase, cuyo objetivo es construir adquisición de comentarios locales de forma trazable y segura.
 
@@ -1250,13 +1252,13 @@ Yelp Open Dataset
 
 Google Reviews se utilizará como corpus local y operativo.
 
-Yelp se utilizará después para ampliar entrenamiento, experimentar con extracción de platos y generar modelos más robustos.
+Yelp ya se ha utilizado como corpus amplio para entrenar, validar e integrar un prototipo IA completo. El siguiente salto será adaptar ese flujo a las reviews locales de Google, especialmente por idioma, contexto de Sevilla y ranking por barrio.
 
 ---
 
 ## 32. Estado final de la vertical
 
-La vertical Google Places Reviews queda en estado funcional validado:
+La vertical Google Places Reviews queda en estado funcional validado y preparada para conectarse con la capa IA:
 
 ```text
 [OK] Tabla review ampliada
@@ -1275,6 +1277,7 @@ La vertical Google Places Reviews queda en estado funcional validado:
 [OK] Sin errores
 [OK] Sin validation issues
 [OK] Enlaces correctos con place/place_source_ref/barrio
+[OK] Reviews locales preparadas como entrada futura de export_reviews_for_ai.py
 ```
 
 La vertical queda preparada para enriquecer progresivamente locales ya consolidados con reseñas reales y para alimentar las futuras fases de NLP de Hidden Gems.
@@ -1285,10 +1288,10 @@ La vertical queda preparada para enriquecer progresivamente locales ya consolida
 
 No forma parte de esta vertical:
 
-* entrenar modelos NLP;
-* extraer platos;
-* detectar sentimiento por plato;
-* calcular rankings por barrio;
+* entrenar modelos NLP dentro de esta vertical;
+* extraer platos dentro de esta vertical;
+* detectar sentimiento por plato dentro de esta vertical;
+* calcular rankings por barrio dentro de esta vertical;
 * integrar Yelp;
 * construir dashboards;
 * crear API pública;
@@ -1305,15 +1308,55 @@ La vertical Google Places Reviews completa una pieza fundamental del pipeline de
 
 Con esta vertical, el sistema ya no solo dispone de locales geolocalizados y normalizados, sino también de texto gastronómico real vinculado a `place`, `place_source_ref`, barrio y distrito.
 
-Esto deja preparada la base para las siguientes fases del proyecto:
+Esto deja preparada la base local para aplicar el módulo IA ya desarrollado como prototipo:
 
 ```text
-reviews locales
-→ NLP
-→ extracción de platos
-→ sentimiento por plato
-→ score por local
+reviews locales de Google
+→ export_reviews_for_ai.py
+→ detección de platos
+→ normalización de platos
+→ sentimiento por mención
+→ señales place + dish
 → ranking de platos por barrio
 ```
 
 La implementación mantiene el enfoque general del proyecto: adquisición controlada, raw trazable, staging validado, importación canónica, checks reproducibles y escalado gradual.
+
+
+---
+
+## 35. Relación con la integración IA en PostgreSQL
+
+Tras la integración IA, Google Places Reviews pasa a ocupar un papel especialmente importante: es la fuente real local que deberá alimentar el sistema de detección de platos y ranking para Sevilla.
+
+El prototipo IA ya está validado con Yelp y se ha materializado en PostgreSQL mediante:
+
+```text
+dish
+dish_alias
+dish_mention
+dish_mention_sentiment
+dish_place_signal
+hidden_gem_candidate
+```
+
+Pero los candidatos actuales están marcados como:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
+
+Por tanto, no sustituyen todavía al ranking real de Sevilla. Para convertir Google Reviews en entrada de producción, el siguiente flujo será:
+
+```text
+hidden_gems.review
+WHERE source_system = google_places
+  AND is_operational_review = true
+  AND is_training_eligible = true
+→ export_reviews_for_ai.py
+→ procesamiento IA
+→ hidden_gem_candidate con ranking_scope = sevilla_neighborhood
+```
+
+Esta separación mantiene limpio el diseño: la vertical Google Reviews adquiere y persiste reseñas locales; la capa IA procesa esas reseñas después como una fase derivada y versionada.

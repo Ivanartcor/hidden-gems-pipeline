@@ -1,34 +1,33 @@
-# `docs/44_vertical_yelp_open_dataset.md`
-
-# Vertical Yelp Open Dataset
+# 44. Vertical Yelp Open Dataset
 
 ## 1. Objetivo de la vertical
 
-La vertical **Yelp Open Dataset** tiene como objetivo construir un corpus externo de reseñas gastronómicas para las futuras fases de NLP de Hidden Gems.
+La vertical **Yelp Open Dataset** tiene como objetivo transformar un snapshot local de Yelp en un corpus gastronómico útil para las fases de IA de Hidden Gems.
 
-A diferencia de Google Places y Google Places Reviews, esta vertical no busca alimentar directamente el modelo operativo de locales de Sevilla. Su finalidad es preparar un dataset amplio, trazable y controlado para tareas de procesamiento de lenguaje natural.
+En la primera etapa, la vertical construyó un corpus externo de reseñas gastronómicas en formato JSONL para entrenamiento, validación y experimentación NLP.
 
-El uso principal de esta vertical es:
-
-- crear un corpus de entrenamiento para extracción de platos;
-- disponer de reseñas gastronómicas extensas y variadas;
-- preparar ejemplos para análisis de sentimiento;
-- generar una base de entrenamiento para sentimiento general de reseñas;
-- preparar una futura aproximación a sentimiento por plato;
-- disponer de datos para experimentación NLP antes de aplicar modelos a Google Reviews locales;
-- separar claramente corpus externo de entrenamiento y datos operativos de la aplicación.
-
-La salida principal de esta vertical es un archivo JSONL de corpus NLP:
+En una segunda etapa, ese corpus se utilizó para desarrollar e integrar el módulo IA de Hidden Gems en PostgreSQL, incluyendo:
 
 ```text
-data/artifacts/nlp_corpus/yelp_food_reviews_corpus_sample_100k_lines.jsonl
+detección de platos
+normalización de platos
+sentimiento por mención
+señales agregadas por local + plato
+ranking prototipo de Hidden Gems
+```
+
+La decisión clave se mantiene: **Yelp no representa datos productivos de Sevilla**. Su función es servir como corpus amplio y prototipo IA. Los resultados cargados en base de datos se marcan como:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
 ```
 
 ---
 
 ## 2. Papel de Yelp dentro de Hidden Gems
 
-La estrategia global del proyecto diferencia claramente entre datos operativos y datos de entrenamiento:
+La estrategia global diferencia entre fuente operativa local y corpus externo:
 
 ```text
 Google Places
@@ -46,99 +45,79 @@ Google Places Reviews
 ```text
 Yelp Open Dataset
 → corpus externo amplio
-→ entrenamiento y evaluación NLP
-→ no vinculado inicialmente a place de Sevilla
+→ entrenamiento, validación e integración prototipo IA
+→ no producción Sevilla
 ```
 
-Por tanto, Yelp no se utiliza en esta fase para crear locales canónicos ni para generar rankings operativos por barrio.
+Por tanto, Yelp tiene dos usos controlados:
 
-La relación conceptual es:
-
-```text
-Yelp Open Dataset
-→ corpus NLP
-→ entrenamiento / experimentación
-→ modelos o reglas aplicables después sobre Google Reviews locales
-```
+| Uso | Resultado | Naturaleza |
+|---|---|---|
+| Corpus NLP | JSONL de reviews gastronómicas | Entrenamiento / experimentación |
+| Prototipo IA integrado | Tablas IA en PostgreSQL | Validación técnica de extremo a extremo |
 
 ---
 
-## 3. Decisión clave: Yelp no se importa en `hidden_gems.review`
+## 3. Decisión actual: Yelp sí se importa, pero solo como prototipo IA
 
-La tabla `hidden_gems.review` está orientada a reseñas operativas vinculadas a un local real del sistema.
+La documentación inicial de la vertical definía Yelp como un corpus externo no importado en PostgreSQL. Esa decisión fue correcta para la primera fase de construcción del corpus.
 
-En Google Reviews, cada reseña queda vinculada a:
+Tras desarrollar el módulo IA, se tomó una decisión adicional: importar un subconjunto controlado de Yelp en PostgreSQL para poder conectar los resultados IA con las entidades reales del modelo:
 
 ```text
-review.place_id
-review.place_source_ref_id
-review.source_place_record_id
+Yelp business_id
+→ place_source_ref
+→ place
+
+Yelp review_id
+→ review.source_review_id
+→ review
 ```
 
-En Yelp Open Dataset, las reseñas pertenecen a negocios externos del dataset, no necesariamente a locales de Sevilla ni a locales ya consolidados en `hidden_gems.place`.
-
-Por ese motivo, esta vertical no inserta Yelp en:
+Esta importación **no convierte Yelp en fuente productiva de Sevilla**. Su finalidad es permitir que las tablas IA no queden huérfanas y validar el flujo completo:
 
 ```text
-hidden_gems.review
+review
+→ dish_mention
+→ dish_mention_sentiment
+→ dish_place_signal
+→ hidden_gem_candidate
 ```
 
-En su lugar, construye un corpus separado:
+Reglas aplicadas:
 
 ```text
-data/artifacts/nlp_corpus/*.jsonl
-```
-
-Esto evita:
-
-- crear locales falsos;
-- permitir reviews huérfanas en el modelo operativo;
-- mezclar datos locales con corpus externo;
-- contaminar futuros rankings por barrio;
-- romper la trazabilidad entre `review`, `place` y `neighborhood`.
-
-La decisión queda así:
-
-```text
-Google Reviews
-→ review operativo con place_id
-
-Yelp Reviews
-→ corpus externo para NLP
+1. Yelp se carga como prototipo IA, no como producción Sevilla.
+2. Yelp no debe usarse para ranking real por barrio de Sevilla.
+3. Los candidatos derivados se marcan como yelp_prototype.
+4. Los candidatos no son production_ready.
+5. La adaptación productiva deberá hacerse después con Google Reviews locales.
 ```
 
 ---
 
 ## 4. Restricciones de uso y tratamiento del dataset
 
-El Yelp Open Dataset se trata como un recurso local para uso académico y experimental.
+El Yelp Open Dataset se trata como recurso local para uso académico y experimental.
 
-Reglas adoptadas en el proyecto:
+Reglas adoptadas:
 
 ```text
-1. No subir el dataset al repositorio.
-2. No compartir el dataset con terceros.
+1. No subir el dataset original al repositorio.
+2. No compartir ficheros originales.
 3. No exponer públicamente reviews individuales.
-4. No usarlo como fuente comercial.
-5. No construir listados operativos de locales a partir de Yelp.
-6. Usarlo únicamente como corpus de entrenamiento/evaluación NLP.
-7. Mantener los ficheros grandes fuera de Git.
-8. Trabajar mediante subsets y artefactos controlados.
+4. No usar Yelp como fuente comercial.
+5. No usar Yelp como sustituto de Google Places para Sevilla.
+6. Mantener ficheros grandes fuera de Git.
+7. Trabajar mediante subsets, summaries y artefactos controlados.
+8. Marcar cualquier ranking derivado como prototipo.
 ```
-
-Por tanto, los ficheros grandes se colocan en:
-
-```text
-data/external/yelp_open_dataset/
-```
-
-y deben quedar ignorados por Git.
 
 ---
 
 ## 5. Estructura local de carpetas
 
-Para esta vertical se utiliza la siguiente estructura:
+Estructura usada para la vertical y la integración IA:
 
 ```text
 data/
@@ -158,27 +137,26 @@ data/
 │       └── food_reviews_summary.json
 │
 └── artifacts/
-    ├── yelp_open_dataset_qa/
-    │   ├── yelp_dataset-001_tar_profile.json
-    │   ├── yelp_dataset-001_selected_extract_manifest.json
-    │   ├── yelp_jsonl_profile.json
-    │   ├── food_businesses_summary.json
-    │   ├── food_reviews_summary.json
-    │   ├── yelp_food_reviews_corpus_sample_100k_lines_summary.json
-    │   └── yelp_food_reviews_corpus_sample_100k_lines_check.json
+    ├── nlp_corpus/
+    │   ├── yelp_food_reviews_corpus_sample_100k_lines.jsonl
+    │   └── yelp_food_reviews_corpus_sample_100k_lines_summary.json
     │
-    └── nlp_corpus/
-        ├── yelp_food_reviews_corpus_sample_100k_lines.jsonl
-        └── yelp_food_reviews_corpus_sample_100k_lines_summary.json
+    ├── yelp_open_dataset_qa/
+    │   └── checks y summaries de la vertical
+    │
+    └── ai/
+        ├── normalization/
+        ├── sentiment/
+        ├── aggregation/
+        ├── ranking/
+        └── checks/
 ```
 
 ---
 
 ## 6. Reglas de `.gitignore`
 
-Se recomienda ignorar los ficheros grandes del dataset y los JSONL derivados de gran volumen.
-
-Bloque recomendado:
+Los ficheros grandes deben quedar fuera de Git:
 
 ```gitignore
 # Yelp Open Dataset - local large files
@@ -187,23 +165,27 @@ data/staging/yelp_open_dataset/*.jsonl
 data/staging/yelp_open_dataset/*.txt
 data/staging/yelp_open_dataset/*.json
 data/artifacts/nlp_corpus/*.jsonl
+
+# AI large artifacts
+data/artifacts/ai/**/*.jsonl
+data/artifacts/ai/**/*.csv
 ```
 
-Los scripts, documentación y summaries pequeños sí pueden versionarse si se considera útil.
+Los scripts, documentación y summaries pequeños pueden versionarse cuando no contengan contenido sensible ni reviews completas.
 
 ---
 
 ## 7. Ficheros del TAR original
 
-El dataset se recibió como un archivo TAR local:
+El dataset local se recibió como:
 
 ```text
 data/external/yelp_open_dataset/yelp_dataset-001.tar
 ```
 
-El perfilado del TAR detectó seis miembros:
+Miembros principales detectados:
 
-| Fichero | Tipo detectado | Tamaño aproximado |
+| Fichero | Tipo | Tamaño aproximado |
 |---|---:|---:|
 | `Dataset_User_Agreement.pdf` | documentación | 0.077 MB |
 | `yelp_academic_dataset_business.json` | business | 113.357 MB |
@@ -212,489 +194,114 @@ El perfilado del TAR detectó seis miembros:
 | `yelp_academic_dataset_tip.json` | tip | 172.238 MB |
 | `yelp_academic_dataset_user.json` | user | 3207.520 MB |
 
-Para esta vertical se extraen únicamente:
+Para esta vertical se utilizaron únicamente:
 
 ```text
 yelp_academic_dataset_business.json
 yelp_academic_dataset_review.json
 ```
 
-No se extraen inicialmente:
-
-```text
-user.json
-checkin.json
-tip.json
-```
-
-porque no son necesarios para construir el primer corpus de reseñas gastronómicas.
-
 ---
 
 ## 8. Naturaleza JSON Lines del dataset
 
-Los ficheros del Yelp Open Dataset se tratan como **JSON Lines**:
+Los ficheros de Yelp se tratan como **JSON Lines**:
 
 ```text
 1 línea = 1 objeto JSON
 ```
 
-Por tanto, no se deben cargar con:
-
-```python
-json.load(file)
-```
-
-porque eso intentaría cargar el fichero completo en memoria.
-
-El patrón correcto es:
+Por tanto, la lectura debe hacerse en streaming:
 
 ```python
 for line in file:
     row = json.loads(line)
 ```
 
-Esta decisión es fundamental porque `review.json` pesa más de 5 GB.
+No debe usarse `json.load(file)` sobre `review.json`, porque el fichero pesa varios GB.
 
 ---
 
-## 9. Scripts implementados
+## 9. Scripts de la vertical de datos Yelp
 
-La vertical se ha dividido en scripts pequeños y reproducibles.
+La vertical original de datos se divide en scripts reproducibles:
 
 | Script | Propósito |
 |---|---|
 | `scripts/profile_yelp_tar.py` | Perfilar el `.tar` sin extraerlo completo |
-| `scripts/extract_yelp_selected_files.py` | Extraer de forma segura solo `business.json` y `review.json` |
-| `scripts/profile_yelp_jsonl_files.py` | Perfilar `business.json` y una muestra de `review.json` |
+| `scripts/extract_yelp_selected_files.py` | Extraer de forma segura `business.json` y `review.json` |
+| `scripts/profile_yelp_jsonl_files.py` | Perfilar JSONL de business/review |
 | `scripts/build_yelp_food_business_subset.py` | Filtrar negocios gastronómicos |
-| `scripts/build_yelp_food_review_subset.py` | Filtrar reviews asociadas a negocios gastronómicos |
+| `scripts/build_yelp_food_review_subset.py` | Filtrar reviews gastronómicas |
 | `scripts/build_yelp_nlp_corpus.py` | Construir corpus NLP final |
 | `scripts/check_yelp_nlp_corpus.py` | Validar el corpus NLP generado |
 
 ---
 
-## 10. Paso 1 — Perfilado del TAR
+## 10. Flujo de construcción del corpus
 
-Script:
-
-```text
-scripts/profile_yelp_tar.py
-```
-
-Comando utilizado:
-
-```powershell
-python -m scripts.profile_yelp_tar `
-  --tar-path "data/external/yelp_open_dataset/yelp_dataset-001.tar" `
-  --save-artifact
-```
-
-Objetivo:
-
-- inspeccionar el TAR sin extraer todos los ficheros;
-- detectar nombres exactos;
-- clasificar miembros;
-- calcular tamaños;
-- verificar que existen `business` y `review`.
-
-Resultado real:
+El flujo construido es:
 
 ```text
-member_file_count = 6
-total_size_gb = 8.654
-business = true
-review = true
-user = true
-checkin = true
-tip = true
-photo = false
+Yelp TAR
+→ profile TAR
+→ extract selected files
+→ profile JSONL
+→ build food business subset
+→ build food review subset
+→ build NLP corpus
+→ check NLP corpus
 ```
 
-Artefacto generado:
+Resultado principal:
 
 ```text
-data/artifacts/yelp_open_dataset_qa/yelp_dataset-001_tar_profile.json
+data/artifacts/nlp_corpus/yelp_food_reviews_corpus_sample_100k_lines.jsonl
 ```
 
 ---
 
-## 11. Paso 2 — Extracción controlada
-
-Script:
-
-```text
-scripts/extract_yelp_selected_files.py
-```
-
-Comando utilizado:
-
-```powershell
-python -m scripts.extract_yelp_selected_files `
-  --tar-path "data/external/yelp_open_dataset/yelp_dataset-001.tar" `
-  --save-artifact
-```
-
-Objetivo:
-
-- extraer solo los ficheros necesarios;
-- evitar extracción completa del TAR;
-- evitar path traversal;
-- calcular `sha256`;
-- registrar tamaño y ruta;
-- generar manifest de extracción.
-
-Ficheros extraídos:
-
-```text
-data/external/yelp_open_dataset/extracted/yelp_academic_dataset_business.json
-data/external/yelp_open_dataset/extracted/yelp_academic_dataset_review.json
-```
-
-Resultado real:
-
-```text
-business.json size = 118.863.795 bytes
-business.json sha256 = 392280627d83ecdcbff8006bba5db289f8436ef147d5a103b1ace5b54186727f
-
-review.json size = 5.341.868.833 bytes
-review.json sha256 = a4edc050d14eec25373a75e7ee211d42f49f14f47230837d8c7849eb9c5f2f96
-```
-
-Checks:
-
-```text
-all_requested_types_extracted = true
-has_business = true
-has_review = true
-```
-
-Artefacto generado:
-
-```text
-data/artifacts/yelp_open_dataset_qa/yelp_dataset-001_selected_extract_manifest.json
-```
-
----
-
-## 12. Paso 3 — Perfilado de JSONL
-
-Script:
-
-```text
-scripts/profile_yelp_jsonl_files.py
-```
-
-Comando utilizado:
-
-```powershell
-python -m scripts.profile_yelp_jsonl_files `
-  --save-artifact
-```
-
-Este script realiza:
-
-```text
-business.json → escaneo completo
-review.json   → primeras 100.000 líneas
-```
-
-Objetivo:
-
-- comprobar que los JSONL son válidos;
-- revisar campos;
-- obtener ejemplos;
-- perfilar categorías;
-- perfilar ratings;
-- revisar fechas;
-- revisar longitud de reviews.
-
-Checks validados:
-
-```text
-business_file_exists = true
-review_file_exists = true
-business_has_records = true
-review_has_records = true
-business_invalid_json_is_zero = true
-review_invalid_json_is_zero = true
-business_has_business_id_field = true
-business_has_categories_field = true
-review_has_review_id_field = true
-review_has_business_id_field = true
-review_has_text_field = true
-```
-
-Artefacto generado:
-
-```text
-data/artifacts/yelp_open_dataset_qa/yelp_jsonl_profile.json
-```
-
----
-
-## 13. Paso 4 — Filtrado de negocios gastronómicos
-
-Script:
-
-```text
-scripts/build_yelp_food_business_subset.py
-```
-
-Comando utilizado:
-
-```powershell
-python -m scripts.build_yelp_food_business_subset `
-  --min-review-count 1 `
-  --save-artifact
-```
-
-Objetivo:
-
-```text
-business.json
-→ food_businesses.jsonl
-→ food_business_ids.txt
-```
-
-El filtrado utiliza categorías de Yelp para identificar negocios gastronómicos.
-
-Categorías de inclusión relevantes:
-
-```text
-Restaurants
-Food
-Bars
-Cafes
-Coffee & Tea
-Breakfast & Brunch
-Bakeries
-Pizza
-Mexican
-Italian
-Spanish
-Mediterranean
-Tapas Bars
-Sushi Bars
-Seafood
-Burgers
-Sandwiches
-Food Trucks
-Diners
-Delis
-```
-
-También se aplicaron exclusiones para evitar falsos positivos como:
-
-```text
-Doctors
-Traditional Chinese Medicine
-Health & Medical
-Barbers
-Drugstores
-Beauty & Spas
-Auto Repair
-Real Estate
-```
-
-La primera versión del filtro era demasiado permisiva porque detectaba `Chinese` dentro de `Traditional Chinese Medicine`. El filtro fue endurecido para usar coincidencias exactas de categorías normalizadas.
+## 11. Resultados del corpus NLP inicial
 
 Resultado validado:
 
 ```text
-processed_count = 150.346
+processed_count = 79.882
 invalid_json_count = 0
-food_candidate_count = 66.770
-kept_count = 66.770
-unique_business_id_count = 66.770
+skipped_short_text_count = 612
+kept_count = 79.270
+unique_document_id_count = 79.270
+unique_review_id_count = 79.270
+unique_business_id_count = 5.141
 ```
 
-Checks validados:
+Splits:
 
 ```text
-input_file_exists = true
-processed_records = true
-invalid_json_is_zero = true
-has_food_businesses = true
-business_ids_are_unique = true
-output_food_businesses_exists = true
-output_food_business_ids_exists = true
+train = 63.540
+validation = 7.849
+test = 7.881
 ```
 
-Salidas:
+Etiquetas débiles derivadas desde rating:
 
 ```text
-data/staging/yelp_open_dataset/food_businesses.jsonl
-data/staging/yelp_open_dataset/food_business_ids.txt
-data/staging/yelp_open_dataset/food_businesses_summary.json
+positive = 54.857
+neutral = 9.835
+negative = 14.578
 ```
 
-Artefacto:
+Idioma:
 
 ```text
-data/artifacts/yelp_open_dataset_qa/food_businesses_summary.json
+language = en
 ```
 
 ---
 
-## 14. Paso 5 — Filtrado de reviews gastronómicas
+## 12. Estructura del documento del corpus
 
-Script:
-
-```text
-scripts/build_yelp_food_review_subset.py
-```
-
-Comando de prueba utilizado:
-
-```powershell
-python -m scripts.build_yelp_food_review_subset `
-  --max-lines 100000 `
-  --min-text-length 40 `
-  --save-artifact
-```
-
-Objetivo:
-
-```text
-review.json
-→ conservar reviews cuyo business_id esté en food_business_ids.txt
-→ food_reviews.jsonl
-```
-
-Este script lee `review.json` en streaming y conserva solo reviews asociadas a negocios gastronómicos filtrados previamente.
-
-Resultado real sobre las primeras 100.000 líneas:
-
-```text
-food_business_id_count = 66.770
-business_metadata_count = 66.770
-processed_lines = 100.000
-invalid_json_count = 0
-matched_business_count = 79.922
-kept_review_count = 79.882
-unique_review_id_count = 79.882
-unique_business_ids_with_reviews = 5.150
-skipped_missing_text_count = 0
-skipped_short_text_count = 40
-skipped_missing_business_metadata_count = 0
-```
-
-Distribución de ratings:
-
-```text
-5.0 = 33.523
-4.0 = 21.822
-3.0 = 9.888
-1.0 = 7.834
-2.0 = 6.815
-```
-
-Rango temporal:
-
-```text
-min_date = 2005-03-01 17:47:15
-max_date = 2018-10-04 18:20:00
-```
-
-Principales categorías:
-
-```text
-Restaurants
-Food
-Nightlife
-Bars
-American (New)
-American (Traditional)
-Breakfast & Brunch
-Sandwiches
-Seafood
-Coffee & Tea
-Pizza
-Burgers
-Mexican
-Italian
-Cafes
-Cocktail Bars
-Salad
-Sushi Bars
-Bakeries
-Japanese
-Desserts
-Chinese
-```
-
-Checks validados:
-
-```text
-review_file_exists = true
-food_business_ids_loaded = true
-business_metadata_loaded = true
-processed_lines = true
-invalid_json_is_zero = true
-has_matched_reviews = true
-has_kept_reviews = true
-review_ids_are_unique = true
-business_metadata_complete_for_kept_reviews = true
-output_food_reviews_exists = true
-```
-
-Salidas:
-
-```text
-data/staging/yelp_open_dataset/food_reviews.jsonl
-data/staging/yelp_open_dataset/food_reviews_summary.json
-```
-
-Artefacto:
-
-```text
-data/artifacts/yelp_open_dataset_qa/food_reviews_summary.json
-```
-
----
-
-## 15. Paso 6 — Construcción del corpus NLP
-
-Script:
-
-```text
-scripts/build_yelp_nlp_corpus.py
-```
-
-Comando utilizado:
-
-```powershell
-python -m scripts.build_yelp_nlp_corpus `
-  --corpus-name yelp_food_reviews_corpus_sample_100k_lines `
-  --min-text-length 80 `
-  --max-text-length 5000 `
-  --save-artifact
-```
-
-Objetivo:
-
-```text
-food_reviews.jsonl
-→ yelp_food_reviews_corpus_sample_100k_lines.jsonl
-```
-
-El corpus NLP añade:
-
-- ID de documento estable;
-- split determinista;
-- etiqueta débil de sentimiento derivada del rating;
-- idioma asumido;
-- metadatos del negocio;
-- métricas fuente;
-- flags de calidad;
-- scopes de tarea NLP.
-
----
-
-## 16. Estructura del documento del corpus
-
-Cada documento del corpus tiene una estructura similar a:
+Cada documento contiene campos como:
 
 ```json
 {
@@ -723,54 +330,19 @@ Cada documento del corpus tiene una estructura similar a:
     "has_text": true,
     "has_rating": true,
     "has_business_metadata": true,
-    "text_length_chars": 511,
     "label_is_weak": true,
     "label_source": "rating_value"
   },
-  "business_metadata": {
-    "business_name": "Turning Point of North Wales",
-    "city": "North Wales",
-    "state": "PA",
-    "categories_list": [],
-    "food_category_tags": []
-  },
-  "source_metrics": {
-    "useful_count": 0,
-    "funny_count": 0,
-    "cool_count": 0
-  }
+  "business_metadata": {},
+  "source_metrics": {}
 }
 ```
 
 ---
 
-## 17. Split determinista
+## 13. Etiqueta débil de sentimiento
 
-El corpus utiliza split determinista basado en hash de `source_review_id`.
-
-Regla:
-
-```text
-80% train
-10% validation
-10% test
-```
-
-Esto permite regenerar el corpus manteniendo asignaciones estables.
-
-Distribución real:
-
-```text
-train = 63.540
-validation = 7.849
-test = 7.881
-```
-
----
-
-## 18. Etiqueta débil de sentimiento
-
-La etiqueta de sentimiento se deriva del rating:
+La etiqueta inicial de sentimiento se deriva de `rating_value`:
 
 ```text
 rating >= 4 → positive
@@ -778,270 +350,274 @@ rating = 3  → neutral
 rating <= 2 → negative
 ```
 
-Esta etiqueta se considera **weak label**, no anotación humana.
+Esta etiqueta no es anotación humana. Se utiliza como señal débil para entrenamiento o baseline.
 
-Distribución real:
+---
+
+## 14. Fase IA desarrollada sobre Yelp
+
+Después de construir el corpus, se desarrolló una fase IA completa con notebooks y artefactos derivados.
+
+Módulos principales:
 
 ```text
-positive = 54.857
-neutral = 9.835
-negative = 14.578
+1. Sentimiento general de review
+2. Dataset de detección de platos
+3. Entrenamiento NER de platos
+4. Inferencia de menciones de platos
+5. Normalización de platos
+6. Sentimiento por mención
+7. Agregación de señales por negocio + plato
+8. Ranking Hidden Gems prototipo
 ```
 
-Distribución de rating:
+Resultados principales:
 
 ```text
-5.0 = 33.241
-4.0 = 21.616
-3.0 = 9.835
-1.0 = 7.790
-2.0 = 6.788
+dish_catalog_seed_v2.csv
+dish_aliases_seed_v2.csv
+dish_mentions_with_sentiment_hybrid_v1.jsonl
+dish_business_ranking_candidates_v1.csv
+hidden_gems_selected_candidates_v1.csv
 ```
 
 ---
 
-## 19. Resultado del corpus NLP inicial
+## 15. Integración IA en PostgreSQL
 
-Resultado validado:
+Para validar el flujo de extremo a extremo, se creó una capa IA en PostgreSQL mediante:
 
 ```text
-processed_count = 79.882
-invalid_json_count = 0
-skipped_missing_required_count = 0
-skipped_short_text_count = 612
-skipped_long_text_count = 0
-kept_count = 79.270
-unique_document_id_count = 79.270
-unique_review_id_count = 79.270
-unique_business_id_count = 5.141
+db/ddl/07_ai_module.sql
+db/ddl/08_ai_views.sql
 ```
 
-Rango de fechas:
+Tablas principales:
 
 ```text
-2005-2018
+ai_model_version
+ai_pipeline_run
+dish
+dish_alias
+dish_mention
+dish_mention_sentiment
+dish_place_signal
+hidden_gem_candidate
 ```
 
-Idioma:
+Vistas principales:
 
 ```text
-language = en
-```
-
-Longitud textual:
-
-```text
-min = 80
-max = 4.999
-avg = 534.7568
-```
-
-Salidas:
-
-```text
-data/artifacts/nlp_corpus/yelp_food_reviews_corpus_sample_100k_lines.jsonl
-data/artifacts/nlp_corpus/yelp_food_reviews_corpus_sample_100k_lines_summary.json
-```
-
-Artefacto QA:
-
-```text
-data/artifacts/yelp_open_dataset_qa/yelp_food_reviews_corpus_sample_100k_lines_summary.json
+vw_ai_hidden_gems_yelp_top
+vw_ai_hidden_gem_candidate_detail
+vw_ai_dish_mentions_with_sentiment
+vw_ai_hidden_gems_place_summary
+vw_ai_hidden_gems_dish_summary
+vw_ai_hidden_gems_city_summary
 ```
 
 ---
 
-## 20. Paso 7 — Check final del corpus NLP
+## 16. Scripts de integración IA relacionados con Yelp
 
-Script:
+Scripts principales:
+
+| Script | Propósito |
+|---|---|
+| `scripts/load_ai_dish_catalog.py` | Cargar catálogo de platos y aliases |
+| `scripts/check_ai_dish_catalog.py` | Validar catálogo IA cargado |
+| `scripts/load_yelp_ai_core_reviews.py` | Cargar businesses/reviews Yelp como puente prototipo |
+| `scripts/check_ai_downstream_import_readiness.py` | Validar mapeos review/place/dish antes de cargar IA downstream |
+| `scripts/load_ai_mentions_and_sentiment.py` | Cargar menciones y sentimiento por mención |
+| `scripts/load_ai_signals_and_ranking.py` | Cargar señales y ranking prototipo |
+| `scripts/check_ai_ranking_loaded.py` | Validar integridad final del ranking IA |
+| `scripts/query_ai_ranking_demo.py` | Consultar vistas IA de demo |
+
+---
+
+## 17. Carga prototipo de Yelp en base de datos
+
+Para evitar resultados IA huérfanos, se cargó el núcleo Yelp usado por el corpus:
 
 ```text
-scripts/check_yelp_nlp_corpus.py
+food_businesses.jsonl → place + place_source_ref
+food_reviews.jsonl    → review
 ```
 
-Comando utilizado:
+Esta carga permite resolver:
+
+```text
+business_id → place_id
+review_id   → review_id interno
+canonical_dish_name → dish_id
+```
+
+Después de esta carga, los checks confirmaron que era seguro importar:
+
+```text
+dish_mention
+dish_mention_sentiment
+dish_place_signal
+hidden_gem_candidate
+```
+
+---
+
+## 18. Resultados IA integrados
+
+La integración final en PostgreSQL dejó cargado:
+
+```text
+dish = 9.937
+dish_alias = 10.235
+dish_mention = 94.932
+dish_mention_sentiment = 94.932
+dish_place_signal = 31.036
+hidden_gem_candidate = 622
+```
+
+El ranking está listo para consulta como prototipo:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
+
+No hay candidatos productivos de Sevilla todavía.
+
+---
+
+## 19. Consulta de demo
+
+Tras crear `08_ai_views.sql`, el ranking puede consultarse con:
+
+```sql
+SELECT *
+FROM hidden_gems.vw_ai_hidden_gems_yelp_top
+LIMIT 20;
+```
+
+También se puede usar el script:
 
 ```powershell
-python -m scripts.check_yelp_nlp_corpus `
-  --corpus-path data/artifacts/nlp_corpus/yelp_food_reviews_corpus_sample_100k_lines.jsonl `
-  --summary-path data/artifacts/nlp_corpus/yelp_food_reviews_corpus_sample_100k_lines_summary.json `
-  --save-artifact
+python -m scripts.query_ai_ranking_demo `
+  --top-n 20
 ```
 
-Objetivo:
+O consultar un caso concreto:
 
-- validar estructura JSONL;
-- comprobar campos obligatorios;
-- comprobar IDs únicos;
-- comprobar splits;
-- comprobar labels de sentimiento;
-- comprobar idioma;
-- comprobar metadata de negocio;
-- comprobar ausencia de warnings y errores;
-- comprobar coherencia con el summary.
-
-Resultado real:
-
-```text
-processed_count = 79.270
-invalid_json_count = 0
-unique_document_id_count = 79.270
-unique_review_id_count = 79.270
-unique_business_id_count = 5.141
-duplicate_document_id_count = 0
-duplicate_review_id_count = 0
-```
-
-Checks validados:
-
-```text
-corpus_file_exists = true
-processed_documents = true
-invalid_json_is_zero = true
-document_ids_are_unique = true
-review_ids_are_unique = true
-has_business_ids = true
-has_train_split = true
-has_validation_split = true
-has_test_split = true
-has_positive_examples = true
-has_neutral_examples = true
-has_negative_examples = true
-has_language = true
-has_no_error_issues = true
-has_no_warning_issues = true
-matches_summary_kept_count_when_full_scan = true
-```
-
-Artefacto:
-
-```text
-data/artifacts/yelp_open_dataset_qa/yelp_food_reviews_corpus_sample_100k_lines_check.json
+```powershell
+python -m scripts.query_ai_ranking_demo `
+  --place-name "Sushi Ushi" `
+  --dish-name "sushi" `
+  --include-mentions
 ```
 
 ---
 
-## 21. Estado final de la vertical
+## 20. Relación con Google Reviews locales
 
-La primera versión funcional de la vertical Yelp Open Dataset queda cerrada con éxito:
+Yelp ya ha cumplido su función de corpus amplio y prototipo IA.
 
-```text
-[OK] TAR local perfilado
-[OK] Extracción selectiva business/review
-[OK] JSONL perfilados
-[OK] Negocios gastronómicos filtrados
-[OK] Reviews gastronómicas filtradas
-[OK] Corpus NLP generado
-[OK] Split train/validation/test
-[OK] Etiquetas débiles de sentimiento derivadas de rating
-[OK] Check final del corpus
-[OK] Sin JSON inválidos
-[OK] Sin duplicados
-[OK] Sin errores ni warnings en el check final
-```
-
-Resultado principal:
-
-```text
-79.270 documentos NLP válidos
-5.141 negocios gastronómicos con reviews en la muestra
-3 splits de entrenamiento
-3 clases de sentimiento
-corpus listo para fase NLP
-```
-
----
-
-## 22. Qué queda fuera de alcance
-
-Esta vertical no incluye:
-
-- entrenamiento de modelos NLP;
-- extracción de platos;
-- análisis de sentimiento real por texto;
-- análisis de sentimiento por plato;
-- generación de ranking por barrio;
-- importación del corpus a PostgreSQL;
-- linking con `hidden_gems.place`;
-- linking con Google Places;
-- uso de Yelp como fuente operativa de locales;
-- exposición pública del dataset o sus reviews.
-
-Estas tareas pertenecen a fases posteriores.
-
----
-
-## 23. Relación con Google Reviews locales
-
-Tras esta vertical, el proyecto dispone de dos fuentes textuales complementarias:
+La siguiente fase no consiste en seguir ampliando Yelp, sino en adaptar el flujo a datos locales:
 
 ```text
 Google Places Reviews
-→ reseñas locales de Sevilla
-→ vinculadas a place y barrio
-→ útiles para evaluación local y ranking futuro
+→ reviews reales de Sevilla
+→ export_reviews_for_ai.py
+→ detección de platos
+→ sentimiento por mención
+→ señales por place + dish
+→ ranking por barrio
 ```
 
-```text
-Yelp Open Dataset
-→ corpus amplio externo en inglés
-→ útil para entrenamiento y experimentación NLP
-→ no vinculado a barrio
-```
+La diferencia clave será:
 
-La estrategia posterior recomendada es:
+| Aspecto | Yelp Prototype | Sevilla Production |
+|---|---|---|
+| Fuente | Yelp Open Dataset | Google Places Reviews |
+| Idioma dominante | Inglés | Español |
+| Geografía Sevilla | No | Sí |
+| Barrio / distrito | No productivo | Sí |
+| Ranking scope | `yelp_prototype` | `sevilla_neighborhood` |
+| Production ready | No | Futuro |
+
+---
+
+## 21. Fuera de alcance actual
+
+No forma parte de esta vertical:
 
 ```text
-1. Entrenar/probar reglas NLP con Yelp.
-2. Evaluar manualmente ejemplos de Google Reviews locales.
-3. Adaptar diccionarios y patrones al español.
-4. Aplicar extracción de platos sobre reviews locales.
-5. Calcular scoring y rankings por barrio.
+1. Usar Yelp como ranking real de Sevilla.
+2. Usar Yelp como sustituto de Google Places.
+3. Publicar reviews individuales.
+4. Marcar candidatos Yelp como producción.
+5. Vincular Yelp a barrios sevillanos.
+6. Entrenar el modelo final español de producción.
+7. Desplegar API pública o dashboard final.
 ```
 
 ---
 
-## 24. Próximos pasos recomendados
+## 22. Estado actual
 
-Una vez cerrada esta vertical, los siguientes pasos del proyecto serían:
+La vertical Yelp y su integración IA quedan cerradas en estado validado:
 
 ```text
-1. Documentar `34_yelp_source.md`.
-2. Hacer commit de scripts y documentación.
-3. Crear una primera fase NLP de exploración textual.
-4. Diseñar catálogo inicial de platos y términos gastronómicos.
-5. Crear baseline de extracción de platos con reglas.
-6. Comparar comportamiento en Yelp y Google Reviews.
-7. Preparar tablas futuras: dish, dish_mention, place_dish_score, neighborhood_dish_ranking.
+[OK] TAR perfilado
+[OK] Extracción selectiva business/review
+[OK] JSONL profiling
+[OK] Food businesses subset
+[OK] Food reviews subset
+[OK] Corpus NLP generado
+[OK] Corpus NLP validado
+[OK] Modelos y artefactos IA generados
+[OK] Catálogo dish/dish_alias cargado
+[OK] Core Yelp prototype cargado en PostgreSQL
+[OK] Menciones y sentimiento cargados
+[OK] Señales y ranking cargados
+[OK] Vistas IA creadas
+[OK] Demo de consultas funcional
+[OK] Ranking marcado como yelp_prototype
+[OK] Sin production_ready candidates
 ```
 
 ---
 
-## 25. Resumen ejecutivo de la vertical
+## 23. Próximos pasos recomendados
 
-La vertical Yelp Open Dataset permite transformar un snapshot local masivo de Yelp en un corpus NLP limpio, controlado y validado.
-
-El flujo construido es:
+Los siguientes pasos ya no pertenecen a Yelp, sino a la adaptación local:
 
 ```text
-Yelp TAR
-→ extracción selectiva
-→ profiling
-→ food businesses
-→ food reviews
-→ NLP corpus
-→ corpus check
+1. Crear export_reviews_for_ai.py.
+2. Exportar Google Reviews locales desde hidden_gems.review.
+3. Analizar idioma, volumen y calidad de reseñas de Sevilla.
+4. Adaptar reglas y modelos al español.
+5. Procesar reviews locales con la capa IA.
+6. Calcular dish_place_signal para Sevilla.
+7. Generar hidden_gem_candidate con ranking_scope = sevilla_neighborhood.
+8. Marcar candidatos productivos solo tras validación manual y técnica.
 ```
 
-La salida final contiene:
+---
+
+## 24. Conclusión
+
+La vertical Yelp Open Dataset ha pasado de ser un flujo de construcción de corpus a convertirse en la base experimental completa del módulo IA de Hidden Gems.
+
+Su valor principal ha sido permitir desarrollar, probar e integrar el flujo completo:
 
 ```text
-79.270 documentos válidos
-0 JSON inválidos
-0 duplicados
-train/validation/test
-positive/neutral/negative
-metadata gastronómica asociada
+reviews gastronómicas
+→ detección de platos
+→ normalización
+→ sentimiento por mención
+→ señales agregadas
+→ ranking Hidden Gems
+→ consultas SQL
 ```
 
-Esta vertical deja preparada la base para comenzar la fase NLP de Hidden Gems sin comprometer el modelo operativo de locales y reseñas reales de Sevilla.
+El resultado no debe interpretarse como ranking real de Sevilla, sino como una validación técnica sólida de la arquitectura IA.
+
+La siguiente fase del proyecto será trasladar este flujo a Google Reviews locales para producir rankings reales por barrio dentro de Sevilla.

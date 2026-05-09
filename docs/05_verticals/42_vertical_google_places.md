@@ -17,13 +17,16 @@ La vertical permite:
 * enlazar Google Places con `place` mediante `place_source_ref`;
 * ejecutar batches por barrios;
 * mantener control de coste, errores y trazabilidad;
-* dejar locales preparados para una subvertical posterior de reseñas mediante Place Details.
+* dejar locales preparados para la subvertical de reseñas mediante Place Details;
+* servir como fuente operativa real sobre la que más adelante se aplicará el módulo IA de Hidden Gems para Sevilla.
 
 La parte de reseñas se documenta en un archivo específico:
 
 ```text
 docs/43_vertical_google_places_reviews.md
 ```
+
+El módulo IA posterior —detección de platos, sentimiento por mención, señales y ranking— no forma parte de esta vertical base, pero ya existe en el repositorio como capa derivada independiente. Google Places queda como la fuente operativa que deberá alimentar esa capa en el futuro para el caso real de Sevilla.
 
 ---
 
@@ -891,9 +894,9 @@ No se incluye en esta vertical base:
 * Place Details masivo;
 * importación de reviews dentro del flujo Text Search;
 * scraping;
-* ranking de platos;
-* extracción NLP;
-* scoring gastronómico;
+* ranking de platos dentro de esta vertical;
+* extracción NLP dentro de esta vertical;
+* scoring gastronómico dentro de esta vertical;
 * API pública;
 * dashboard BI.
 
@@ -905,6 +908,43 @@ docs/43_vertical_google_places_reviews.md
 
 ---
 
+
+---
+
+## 25. Relación con la capa IA actual
+
+Tras la integración del módulo IA en PostgreSQL, esta vertical debe entenderse como la fuente operativa principal para el caso real de Sevilla.
+
+La capa IA ya existe en el repositorio mediante:
+
+```text
+db/ddl/07_ai_module.sql
+db/ddl/08_ai_views.sql
+scripts/load_ai_dish_catalog.py
+scripts/load_yelp_ai_core_reviews.py
+scripts/load_ai_mentions_and_sentiment.py
+scripts/load_ai_signals_and_ranking.py
+scripts/query_ai_ranking_demo.py
+```
+
+Sin embargo, esa integración se ha validado inicialmente con Yelp Open Dataset como prototipo externo. Google Places no se modifica por ello: su responsabilidad sigue siendo descubrir y consolidar locales reales de Sevilla.
+
+El flujo futuro esperado es:
+
+```text
+Google Places Text Search
+→ place / place_source_ref / barrio
+→ Google Places Reviews
+→ review local de Sevilla
+→ export_reviews_for_ai.py
+→ detección de platos
+→ sentimiento por plato
+→ señales por place + dish
+→ ranking por barrio
+```
+
+Por tanto, Google Places sigue siendo una vertical de adquisición y consolidación, no una vertical IA. La conexión con IA se producirá después, a partir de las reviews locales ya importadas.
+
 ## 24. Conclusión
 
 La vertical Google Places completa una parte clave del pipeline de Hidden Gems: la incorporación de una fuente dinámica y comercial de alta cobertura, integrada de forma segura, incremental y trazable.
@@ -913,4 +953,4 @@ El sistema ya permite obtener datos reales de Google Places, almacenarlos como r
 
 Además, la creación de `place_source_ref` con Google Place ID deja preparada la base para enriquecer locales con reviews reales mediante la vertical Google Places Reviews.
 
-Gracias a esta vertical, Hidden Gems dispone de una base más sólida para fases posteriores de enriquecimiento, NLP, extracción de platos y ranking por barrio.
+Gracias a esta vertical, Hidden Gems dispone de una base operativa local sobre la que ya puede apoyarse la siguiente fase: exportar reviews reales de Sevilla, aplicar el módulo IA desarrollado como prototipo con Yelp y avanzar hacia ranking de platos por barrio con datos productivos.

@@ -2,22 +2,38 @@
 
 ## 1. Introducción
 
-El modelo de datos de Hidden Gems ha sido diseñado para soportar un pipeline de adquisición, integración, validación y preparación de datos gastronómicos procedentes de múltiples fuentes.
+El modelo de datos de Hidden Gems ha sido diseñado para soportar un pipeline de adquisición, integración, validación, normalización, enriquecimiento geográfico e inteligencia aplicada sobre datos gastronómicos procedentes de múltiples fuentes.
 
-Su objetivo principal no es almacenar datos de forma aislada, sino construir una base estructurada, trazable y preparada para fases posteriores de normalización, análisis textual, enriquecimiento geográfico y generación de señales analíticas.
+Su objetivo principal no es almacenar datos de forma aislada, sino construir una base estructurada, trazable y preparada para:
 
-Este modelo responde a una decisión central del proyecto: separar claramente el dato fuente, el dato canónico, el dato geográfico, el dato derivado y los elementos de gobierno técnico del pipeline.
+- consolidar locales gastronómicos de distintas fuentes;
+- conservar el origen y la trazabilidad de cada dato;
+- trabajar con geografía oficial de barrios y distritos;
+- importar y explotar reseñas reales cuando estén disponibles;
+- generar corpus y señales para procesamiento de lenguaje natural;
+- detectar platos mencionados en reseñas;
+- normalizar variantes de platos;
+- calcular sentimiento por mención;
+- agregar señales por local y plato;
+- generar candidatos Hidden Gems consultables desde PostgreSQL.
+
+El modelo responde a una decisión central del proyecto: separar claramente el dato fuente, el dato canónico, el dato geográfico, el dato derivado, las capas de inteligencia y los elementos de gobierno técnico del pipeline.
 
 De esta forma, el sistema puede responder a preguntas como:
 
-- de qué fuente procede un dato
-- en qué ejecución fue adquirido
-- qué archivo raw lo contenía
-- qué local real representa
-- cómo aparece ese local en cada fuente
-- a qué barrio pertenece
-- qué incidencias de calidad se detectaron
-- qué información queda preparada para fases posteriores
+- de qué fuente procede un dato;
+- en qué ejecución fue adquirido;
+- qué archivo raw lo contenía;
+- qué local real representa;
+- cómo aparece ese local en cada fuente;
+- a qué barrio pertenece;
+- qué reseñas alimentan el análisis;
+- qué platos se mencionan;
+- qué sentimiento tiene cada mención;
+- qué señales agregadas tiene un plato en un local;
+- qué candidatos Hidden Gems se han generado;
+- con qué versión de modelo, regla o ranking se produjo cada resultado;
+- qué incidencias de calidad se detectaron.
 
 ---
 
@@ -31,14 +47,16 @@ Uno de los principios más importantes es no mezclar conceptos distintos dentro 
 
 No es lo mismo:
 
-- un local real consolidado por el sistema
-- la representación de ese local en Google Places, OSM o Yelp
-- una reseña textual asociada a una fuente
-- una ejecución del pipeline
-- un archivo raw descargado
-- una incidencia detectada durante la validación
+- un local real consolidado por el sistema;
+- la representación de ese local en Google Places, OSM o Yelp;
+- una reseña textual asociada a una fuente;
+- una ejecución del pipeline;
+- un archivo raw descargado;
+- una mención de plato detectada por IA;
+- una señal agregada local-plato;
+- un candidato final de ranking.
 
-Por ello, el modelo separa entidades de negocio, entidades fuente y entidades operativas.
+Por ello, el modelo separa entidades de negocio, entidades fuente, entidades operativas y entidades derivadas de IA.
 
 ### 2.2. Mantener una entidad canónica interna
 
@@ -48,59 +66,82 @@ La entidad `place` representa el local canónico interno del sistema. Esta entid
 
 Esto permite que un mismo local pueda estar representado por:
 
-- un `place_id` interno
-- un `google_place_id` dentro de `place_source_ref`
-- un identificador OSM dentro de `place_source_ref`
-- un identificador Yelp dentro de `place_source_ref`
+- un `place_id` interno;
+- un `google_place_id` dentro de `place_source_ref`;
+- un identificador OSM dentro de `place_source_ref`;
+- un identificador Yelp dentro de `place_source_ref`.
 
 La identidad real del sistema pertenece a `place`, no a las fuentes externas.
 
 ### 2.3. Conservar trazabilidad completa
 
-El modelo debe permitir reconstruir el origen de los datos.
+El modelo debe permitir reconstruir el origen de los datos y de los resultados derivados.
 
 Para ello se incorporan entidades específicas de gobierno y trazabilidad:
 
-- `source_system`
-- `source_run`
-- `raw_asset`
-- `validation_issue`
+- `source_system`;
+- `source_run`;
+- `raw_asset`;
+- `validation_issue`;
+- `ai_model_version`;
+- `ai_pipeline_run`.
 
-Estas entidades permiten saber qué fuente fue utilizada, cuándo se ejecutó el pipeline, qué artefactos raw se generaron y qué problemas se detectaron.
+Las primeras trazan la adquisición y los artefactos fuente. Las dos últimas trazan la ejecución y versionado de modelos, reglas, procesos híbridos, agregaciones y rankings.
 
 ### 2.4. Separar dato original y dato interpretado
 
 El dato raw no se sobrescribe ni se transforma directamente.
 
-Las decisiones del sistema, como asignar un barrio, clasificar un local o consolidar referencias de varias fuentes, se representan en entidades separadas.
+Las decisiones del sistema, como asignar un barrio, clasificar un local, consolidar referencias de varias fuentes o generar un candidato Hidden Gem, se representan en entidades separadas.
 
 Ejemplos:
 
-- la categoría interna de un local se almacena mediante `place_category`
-- la asignación barrio-local se almacena mediante `place_neighborhood_assignment`
-- la representación fuente de un local se almacena mediante `place_source_ref`
-- los errores de calidad se almacenan mediante `validation_issue`
+- la categoría interna de un local se almacena mediante `place_category`;
+- la asignación barrio-local se almacena mediante `place_neighborhood_assignment`;
+- la representación fuente de un local se almacena mediante `place_source_ref`;
+- las menciones de platos se almacenan mediante `dish_mention`;
+- el sentimiento por mención se almacena mediante `dish_mention_sentiment`;
+- las señales agregadas se almacenan mediante `dish_place_signal`;
+- los candidatos finales se almacenan mediante `hidden_gem_candidate`.
 
-### 2.5. Preparar el modelo para evolución futura
+### 2.5. Tratar la IA como capa derivada, no como sustitución del core
 
-El modelo actual se centra en la adquisición y estructuración del dato. Sin embargo, está preparado para crecer hacia fases posteriores del proyecto.
+La capa IA no modifica directamente `place` ni `review` para introducir campos como `best_dish`, `hidden_gem_score` o `dish_sentiment`.
 
-En fases futuras podrán añadirse entidades o capas derivadas como:
+En su lugar, el modelo mantiene una separación explícita:
 
-- menciones de platos
-- análisis de sentimiento
-- embeddings de reseñas
-- puntuaciones de calidad textual
-- rankings por barrio
-- métricas agregadas por zona
+```text
+core operacional:
+place + place_source_ref + review + neighborhood
 
-Estas capas no forman parte del núcleo inicial, pero el modelo actual deja preparada la base para incorporarlas sin romper la arquitectura.
+capa IA derivada:
+dish + dish_alias + dish_mention + dish_mention_sentiment + dish_place_signal + hidden_gem_candidate
+```
+
+Esto permite recalcular modelos, cambiar reglas, generar nuevos rankings o comparar versiones sin contaminar las entidades canónicas.
+
+### 2.6. Versionar todo resultado IA
+
+Cada resultado IA debe saber con qué método, modelo o configuración se generó.
+
+Por eso se incorporan:
+
+- `ai_model_version`: registra versiones de modelos, reglas, métodos híbridos, agregadores y rankings.
+- `ai_pipeline_run`: registra ejecuciones concretas de procesos IA.
+
+Ejemplos de versiones registrables:
+
+- `dish_ner_transformer_v1`;
+- `dish_normalization_rule_based_v2`;
+- `mention_sentiment_hybrid_v1_1`;
+- `signal_aggregation_v1`;
+- `hidden_gems_ranking_v1`.
 
 ---
 
 ## 3. Bloques principales del modelo
 
-El modelo se organiza en cinco grandes bloques funcionales.
+El modelo se organiza en seis grandes bloques funcionales.
 
 ## 3.1. Núcleo de negocio
 
@@ -108,9 +149,9 @@ Este bloque representa las entidades principales del dominio gastronómico.
 
 Entidades incluidas:
 
-- `place`
-- `place_source_ref`
-- `review`
+- `place`;
+- `place_source_ref`;
+- `review`.
 
 ### Función del bloque
 
@@ -118,9 +159,9 @@ El núcleo de negocio permite representar locales, sus apariciones en distintas 
 
 La decisión más importante de este bloque es la separación entre:
 
-- `place`: local canónico interno
-- `place_source_ref`: representación de ese local en una fuente concreta
-- `review`: reseña textual dependiente de una fuente
+- `place`: local canónico interno;
+- `place_source_ref`: representación de ese local en una fuente concreta;
+- `review`: reseña textual dependiente de una fuente.
 
 Esta separación es esencial para trabajar con datos multisource sin perder consistencia.
 
@@ -132,9 +173,9 @@ Este bloque representa la estructura territorial oficial utilizada por Hidden Ge
 
 Entidades incluidas:
 
-- `district`
-- `neighborhood`
-- `place_neighborhood_assignment`
+- `district`;
+- `neighborhood`;
+- `place_neighborhood_assignment`.
 
 ### Función del bloque
 
@@ -144,11 +185,11 @@ La decisión clave es que el barrio no se guarda directamente dentro de `place`.
 
 Esto permite:
 
-- recalcular asignaciones
-- almacenar confianza
-- marcar revisiones manuales
-- conservar histórico
-- separar geografía oficial de resultados derivados
+- recalcular asignaciones;
+- almacenar confianza;
+- marcar revisiones manuales;
+- conservar histórico;
+- separar geografía oficial de resultados derivados.
 
 ---
 
@@ -158,8 +199,8 @@ Este bloque gestiona la taxonomía interna de categorías y su relación con los
 
 Entidades incluidas:
 
-- `category`
-- `place_category`
+- `category`;
+- `place_category`.
 
 ### Función del bloque
 
@@ -169,10 +210,10 @@ Por ello, el modelo define una taxonomía interna mediante `category`, y una rel
 
 Esto permite:
 
-- unificar categorías entre fuentes
-- asignar varias categorías a un mismo local
-- marcar una categoría principal
-- registrar el método y la confianza de asignación
+- unificar categorías entre fuentes;
+- asignar varias categorías a un mismo local;
+- marcar una categoría principal;
+- registrar el método y la confianza de asignación.
 
 ---
 
@@ -182,20 +223,24 @@ Este bloque permite auditar el origen y el recorrido técnico de los datos.
 
 Entidades incluidas:
 
-- `source_system`
-- `source_run`
-- `raw_asset`
+- `source_system`;
+- `source_run`;
+- `raw_asset`;
+- `ai_model_version`;
+- `ai_pipeline_run`.
 
 ### Función del bloque
 
 Estas entidades permiten responder a preguntas operativas fundamentales:
 
-- qué fuente se usó
-- cuándo se ejecutó la ingesta
-- qué tipo de ejecución fue
-- qué archivos raw se generaron
-- cuántos registros fueron extraídos o rechazados
-- qué artefactos están disponibles
+- qué fuente se usó;
+- cuándo se ejecutó la ingesta;
+- qué tipo de ejecución fue;
+- qué archivos raw se generaron;
+- cuántos registros fueron extraídos o rechazados;
+- qué modelos, reglas o métodos IA se usaron;
+- qué configuración y métricas tuvo cada ejecución IA;
+- qué artefactos están disponibles.
 
 Este bloque convierte el pipeline en un sistema reproducible y auditable.
 
@@ -207,23 +252,73 @@ Este bloque registra incidencias detectadas durante el pipeline.
 
 Entidad incluida:
 
-- `validation_issue`
+- `validation_issue`.
 
 ### Función del bloque
 
-El sistema no solo almacena datos, sino también los problemas detectados durante su adquisición, validación, integración o enriquecimiento.
+El sistema no solo almacena datos, sino también los problemas detectados durante su adquisición, validación, integración, enriquecimiento o explotación IA.
 
 `validation_issue` permite registrar incidencias como:
 
-- coordenadas ausentes
-- geometría inválida
-- duplicados potenciales
-- categorías no mapeadas
-- reseñas sin texto útil
-- errores de esquema
-- problemas de matching
+- coordenadas ausentes;
+- geometría inválida;
+- duplicados potenciales;
+- categorías no mapeadas;
+- reseñas sin texto útil;
+- errores de esquema;
+- problemas de matching;
+- menciones de platos sin review asociada;
+- platos sin alias canónico;
+- candidatos de ranking sin señal agregada;
+- problemas de carga de artefactos IA.
 
 Esta entidad es clave para controlar la calidad del pipeline.
+
+---
+
+## 3.6. Capa IA y ranking
+
+Este bloque representa las entidades derivadas generadas por el módulo IA.
+
+Entidades incluidas:
+
+- `dish`;
+- `dish_alias`;
+- `dish_mention`;
+- `dish_mention_sentiment`;
+- `dish_place_signal`;
+- `hidden_gem_candidate`.
+
+### Función del bloque
+
+La capa IA permite convertir reseñas textuales en señales gastronómicas explotables.
+
+El flujo conceptual es:
+
+```text
+review
+→ dish_mention
+→ dish_mention_sentiment
+→ dish_place_signal
+→ hidden_gem_candidate
+```
+
+En paralelo, el catálogo de platos se estructura como:
+
+```text
+dish
+→ dish_alias
+→ dish_mention
+```
+
+Esta capa permite responder a preguntas como:
+
+- qué platos se mencionan en las reseñas de un local;
+- qué variantes textuales apuntan al mismo plato;
+- qué sentimiento tiene cada mención;
+- qué platos tienen mejor señal en cada local;
+- qué candidatos Hidden Gems se han generado;
+- qué ranking es prototipo y cuál podría ser producción Sevilla.
 
 ---
 
@@ -234,14 +329,15 @@ Esta entidad es clave para controlar la calidad del pipeline.
 | Núcleo de negocio | `place`, `place_source_ref`, `review` | Representar locales, referencias fuente y reseñas |
 | Geografía | `district`, `neighborhood`, `place_neighborhood_assignment` | Modelar territorio oficial y asignación espacial |
 | Clasificación | `category`, `place_category` | Unificar categorías y clasificar locales |
-| Gobierno y trazabilidad | `source_system`, `source_run`, `raw_asset` | Auditar fuentes, ejecuciones y artefactos raw |
+| Gobierno y trazabilidad | `source_system`, `source_run`, `raw_asset`, `ai_model_version`, `ai_pipeline_run` | Auditar fuentes, ejecuciones, artefactos y procesos IA |
 | Calidad | `validation_issue` | Registrar problemas de validación y calidad |
+| IA y ranking | `dish`, `dish_alias`, `dish_mention`, `dish_mention_sentiment`, `dish_place_signal`, `hidden_gem_candidate` | Detectar platos, calcular sentimiento, agregar señales y generar ranking |
 
 ---
 
 ## 5. Relaciones principales
 
-Las relaciones fundamentales del modelo son:
+Las relaciones fundamentales del modelo base son:
 
 ```text
 source_system 1 ─── N source_run
@@ -259,24 +355,59 @@ neighborhood  1 ─── N place_neighborhood_assignment
 
 source_run    1 ─── N validation_issue
 raw_asset     1 ─── N validation_issue
-````
+```
 
-Estas relaciones reflejan la separación entre fuente, ejecución, entidad canónica, geografía, clasificación y calidad.
+Las relaciones de la capa IA son:
+
+```text
+ai_model_version 1 ─── N dish
+ai_model_version 1 ─── N dish_alias
+ai_model_version 1 ─── N dish_mention
+ai_model_version 1 ─── N dish_mention_sentiment
+
+ai_pipeline_run 1 ─── N dish
+ai_pipeline_run 1 ─── N dish_alias
+ai_pipeline_run 1 ─── N dish_mention
+ai_pipeline_run 1 ─── N dish_mention_sentiment
+ai_pipeline_run 1 ─── N dish_place_signal
+ai_pipeline_run 1 ─── N hidden_gem_candidate
+
+review 1 ─── N dish_mention
+place  1 ─── N dish_mention
+dish   1 ─── N dish_mention
+dish   1 ─── N dish_alias
+
+dish_mention 1 ─── N dish_mention_sentiment
+
+place 1 ─── N dish_place_signal
+dish  1 ─── N dish_place_signal
+
+dish_place_signal 1 ─── N hidden_gem_candidate
+place             1 ─── N hidden_gem_candidate
+dish              1 ─── N hidden_gem_candidate
+neighborhood      1 ─── N hidden_gem_candidate
+district          1 ─── N hidden_gem_candidate
+```
+
+Estas relaciones reflejan la separación entre fuente, ejecución, entidad canónica, geografía, clasificación, calidad, extracción textual, sentimiento, agregación y ranking.
 
 ---
 
 ## 6. Entidad central del modelo
 
-La entidad central del modelo es `place`.
+La entidad central del modelo sigue siendo `place`.
 
 A partir de ella se conectan:
 
-* las referencias externas mediante `place_source_ref`
-* las reseñas mediante `review`
-* las categorías mediante `place_category`
-* la asignación territorial mediante `place_neighborhood_assignment`
+- las referencias externas mediante `place_source_ref`;
+- las reseñas mediante `review`;
+- las categorías mediante `place_category`;
+- la asignación territorial mediante `place_neighborhood_assignment`;
+- las menciones de platos mediante `dish_mention`;
+- las señales agregadas mediante `dish_place_signal`;
+- los candidatos Hidden Gems mediante `hidden_gem_candidate`.
 
-Esto convierte a `place` en el punto de integración del dominio gastronómico.
+Esto convierte a `place` en el punto de integración del dominio gastronómico y de la capa IA.
 
 ---
 
@@ -302,6 +433,29 @@ Las reseñas son dependientes de su fuente. Cada `review` conserva su origen y s
 
 Las incidencias relevantes se estructuran en `validation_issue`, no quedan únicamente en logs de texto.
 
+### 7.6. No insertar resultados IA huérfanos
+
+Las menciones, sentimientos, señales y rankings deben enlazar con entidades canónicas existentes.
+
+Por ejemplo:
+
+- `dish_mention` debe enlazar con `review`, `place` y, cuando sea posible, `dish`;
+- `dish_place_signal` debe enlazar con `place` y `dish`;
+- `hidden_gem_candidate` debe enlazar con `place`, `dish` y la señal que lo justifica.
+
+### 7.7. Tratar Yelp como prototipo IA, no como producción Sevilla
+
+Yelp Open Dataset se ha importado como corpus/prototipo IA para validar la cadena completa de detección de platos, normalización, sentimiento, agregación y ranking.
+
+Los candidatos generados desde Yelp se almacenan con:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
+
+La versión productiva de Sevilla deberá usar `ranking_scope = sevilla_neighborhood`, `neighborhood_id` no nulo y datos operativos reales.
+
 ---
 
 ## 8. Relación con el pipeline
@@ -316,8 +470,16 @@ El modelo está diseñado para acompañar el flujo del pipeline:
 6. Se clasifican locales con `category` y `place_category`.
 7. Se asignan locales a barrios con `place_neighborhood_assignment`.
 8. Se registran incidencias en `validation_issue`.
+9. Se registran versiones IA en `ai_model_version`.
+10. Se registran ejecuciones IA en `ai_pipeline_run`.
+11. Se carga o genera el catálogo de platos en `dish` y `dish_alias`.
+12. Se detectan menciones de platos en `dish_mention`.
+13. Se calcula sentimiento por mención en `dish_mention_sentiment`.
+14. Se agregan señales por local y plato en `dish_place_signal`.
+15. Se generan candidatos de ranking en `hidden_gem_candidate`.
+16. Se exponen vistas de consulta para demo, auditoría y análisis.
 
-Este flujo permite que el modelo no sea solo una base de datos estática, sino una representación estructurada de la operación real del pipeline.
+Este flujo permite que el modelo no sea solo una base de datos estática, sino una representación estructurada de la operación real del pipeline y de sus capas inteligentes.
 
 ---
 
@@ -325,14 +487,32 @@ Este flujo permite que el modelo no sea solo una base de datos estática, sino u
 
 El modelo ya ha sido materializado en PostgreSQL + PostGIS mediante scripts SQL separados por bloques:
 
-* `00_foundation.sql`
-* `01_governance.sql`
-* `02_geo_reference.sql`
-* `03_core_places.sql`
-* `04_classification_and_geo_assignment.sql`
-* `05_validation.sql`
+- `00_foundation.sql`;
+- `01_governance.sql`;
+- `02_geo_reference.sql`;
+- `03_core_places.sql`;
+- `04_classification_and_geo_assignment.sql`;
+- `05_validation.sql`;
+- `06_review_enrichment.sql`;
+- `07_ai_module.sql`;
+- `08_ai_views.sql`.
 
-Estos scripts crean el esquema principal, las extensiones necesarias, los tipos enumerados, las tablas, relaciones, restricciones, índices y triggers definidos para esta fase.
+Los scripts `07_ai_module.sql` y `08_ai_views.sql` incorporan la capa IA persistida y una capa de vistas preparada para consulta.
+
+Estado validado tras la integración IA:
+
+| Elemento | Resultado |
+|---|---:|
+| Platos canónicos (`dish`) | 9.937 |
+| Aliases de platos (`dish_alias`) | 10.235 |
+| Menciones de platos (`dish_mention`) | 94.932 |
+| Sentimientos por mención (`dish_mention_sentiment`) | 94.932 |
+| Señales local-plato (`dish_place_signal`) | 31.036 |
+| Candidatos Hidden Gems (`hidden_gem_candidate`) | 622 |
+| Places totales | 7.230 |
+| Reviews totales | 80.037 |
+
+La integración actual está marcada como prototipo Yelp para explotación y validación interna, no como ranking productivo de Sevilla.
 
 ---
 
@@ -342,12 +522,13 @@ El modelo de datos de Hidden Gems está diseñado para ser robusto, modular y pr
 
 Su principal fortaleza es la separación clara entre:
 
-* dato canónico
-* dato fuente
-* dato geográfico
-* dato derivado
-* trazabilidad técnica
-* control de calidad
+- dato canónico;
+- dato fuente;
+- dato geográfico;
+- dato derivado;
+- trazabilidad técnica;
+- control de calidad;
+- resultados IA;
+- rankings consultables.
 
-Esta estructura permite que el sistema pueda crecer hacia fases posteriores de normalización, NLP, ranking y explotación analítica sin perder consistencia ni trazabilidad.
-
+Esta estructura permite que el sistema pueda crecer hacia fases posteriores de adaptación a Sevilla, ranking por barrio, validación humana, API y explotación analítica sin perder consistencia ni trazabilidad.

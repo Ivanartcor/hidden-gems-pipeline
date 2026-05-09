@@ -1,6 +1,6 @@
 # Hidden Gems Pipeline
 
-Pipeline inteligente de adquisición, validación, normalización y enriquecimiento de datos gastronómicos para **Hidden Gems**, un proyecto orientado a descubrir locales y, en fases posteriores, platos destacados por barrio a partir de múltiples fuentes de datos.
+Pipeline inteligente de adquisición, validación, normalización, enriquecimiento e integración IA de datos gastronómicos para **Hidden Gems**, un proyecto orientado a descubrir locales y platos destacados, con objetivo final de ranking por barrio.
 
 ---
 
@@ -8,19 +8,24 @@ Pipeline inteligente de adquisición, validación, normalización y enriquecimie
 
 **Hidden Gems Pipeline** es el núcleo de procesamiento de datos del proyecto Hidden Gems.
 
-El objetivo de este repositorio no es construir directamente una aplicación final de cara al usuario, sino desarrollar una infraestructura de datos central, reutilizable y trazable que permita:
+El objetivo de este repositorio no es construir directamente una aplicación final de cara al usuario, sino desarrollar una infraestructura central, reutilizable, trazable y extensible que permita:
 
 - adquirir datos desde distintas fuentes;
 - conservar una capa **raw** auditable;
-- validar y limpiar los datos de entrada;
+- validar y limpiar datos de entrada;
 - normalizar información heterogénea en un modelo común;
 - enriquecer geográficamente los registros;
 - consolidar locales gastronómicos en una entidad canónica `place`;
 - asociar referencias externas mediante `place_source_ref`;
 - enriquecer locales con reseñas reales cuando sea posible;
-- preparar datasets y corpus para futuras fases de NLP, extracción de platos y ranking por barrio.
+- construir corpus y artefactos para tareas NLP/IA;
+- detectar menciones de platos en reseñas;
+- normalizar variantes de platos en un catálogo canónico;
+- calcular sentimiento asociado a menciones de platos;
+- agregar señales por local y plato;
+- generar rankings explicables de candidatos Hidden Gems.
 
-En otras palabras, este repositorio implementa la **infraestructura de datos y automatización inteligente** sobre la que se apoyará el resto del sistema Hidden Gems.
+En otras palabras, este repositorio implementa la **infraestructura de datos, automatización e integración IA** sobre la que se apoyará el resto del sistema Hidden Gems.
 
 ---
 
@@ -30,7 +35,9 @@ El enfoque actual del proyecto es:
 
 > **Pipeline inteligente de adquisición y procesamiento de datos gastronómicos para Hidden Gems**
 
-La idea no es desarrollar toda la aplicación Hidden Gems en esta fase, sino construir el módulo central de datos que permita:
+La idea no es desarrollar toda la aplicación Hidden Gems en esta fase, sino construir el módulo central de datos e IA que permita pasar de fuentes externas heterogéneas a resultados consultables y trazables.
+
+Flujo general actual:
 
 ```text
 fuentes externas
@@ -42,7 +49,14 @@ fuentes externas
 → enriquecimiento geográfico
 → deduplicación / matching
 → persistencia canónica
-→ corpus NLP / análisis posterior
+→ reviews
+→ corpus IA
+→ detección de platos
+→ normalización de platos
+→ sentimiento por mención
+→ agregación de señales
+→ ranking Hidden Gems prototipo
+→ vistas SQL / consultas demo
 ```
 
 ---
@@ -58,7 +72,8 @@ Problemas habituales:
 - hay registros incompletos, inconsistentes o ruidosos;
 - la información geográfica no siempre viene preparada para trabajar por barrio;
 - las reseñas no siempre están asociadas de forma clara a una entidad canónica;
-- los datos no suelen estar listos directamente para análisis, NLP o ranking.
+- los datos no suelen estar listos directamente para análisis, NLP o ranking;
+- las reseñas hablan de locales, pero Hidden Gems necesita extraer información más fina: platos concretos, menciones, sentimiento y señales agregadas.
 
 Este pipeline resuelve ese problema creando un flujo reproducible para:
 
@@ -68,7 +83,8 @@ Este pipeline resuelve ese problema creando un flujo reproducible para:
 - asignar localización geográfica útil dentro de Sevilla;
 - construir entidades canónicas (`place`) separadas de sus representaciones por fuente (`place_source_ref`);
 - enriquecer locales con reviews operativas cuando están disponibles;
-- generar datasets preparados para fases futuras de NLP.
+- construir una capa IA derivada sobre `place` y `review`;
+- generar señales y rankings explicables de platos destacados.
 
 ---
 
@@ -82,13 +98,13 @@ Las fuentes definidas para el pipeline son:
 | OSM / Overpass | Fuente abierta de POIs gastronómicos | Implementada |
 | Google Places Text Search | Fuente dinámica para descubrimiento/enriquecimiento de locales | Implementada |
 | Google Places Reviews | Reviews reales asociadas a locales ya consolidados | Implementada |
-| Yelp Open Dataset | Corpus externo para entrenamiento NLP gastronómico | En desarrollo |
+| Yelp Open Dataset | Corpus externo para entrenamiento, validación e integración prototipo IA | Implementada como corpus/prototipo IA |
 
 ---
 
 ## 5. Principio clave sobre Google y Yelp
 
-El proyecto diferencia claramente entre datos **operativos** y datos de **entrenamiento NLP**.
+El proyecto diferencia claramente entre datos **operativos**, datos de **entrenamiento/validación IA** y datos de **prototipo**.
 
 ### Google Places / Google Reviews
 
@@ -107,19 +123,33 @@ Google Places Reviews
 → barrio
 ```
 
-Las reviews de Google solo se guardan si el local ya existe en el modelo canónico y tiene una referencia válida en `place_source_ref`.
+Las reviews de Google se guardan cuando el local ya existe en el modelo canónico y tiene una referencia válida en `place_source_ref`.
 
 ### Yelp Open Dataset
 
-Yelp se usa como corpus externo para NLP:
+Yelp se usa con dos roles controlados:
+
+1. **Corpus externo para IA**: entrenamiento, validación y experimentación NLP sobre reseñas gastronómicas.
+2. **Prototipo integrado en PostgreSQL**: carga controlada de negocios/reviews Yelp como datos prototipo para validar la capa IA completa.
+
+Flujo Yelp actual:
 
 ```text
 Yelp business + Yelp review
 → subset gastronómico
-→ corpus NLP
+→ corpus IA
+→ Dish NER / normalización / sentimiento / ranking
+→ carga prototipo en PostgreSQL
 ```
 
-Yelp no se importa inicialmente como `place` ni como `review` operativo, porque no está vinculado a locales reales de Sevilla. Su objetivo es servir como base amplia para entrenamiento y experimentación en NLP.
+Yelp **no representa datos productivos de Sevilla**. Los resultados asociados a Yelp se marcan como:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
+
+Esto permite validar de extremo a extremo el sistema IA sin confundirlo con el ranking final por barrios de Sevilla.
 
 ---
 
@@ -132,9 +162,10 @@ El proyecto sigue una arquitectura por capas, modular y reproducible.
 - **raw**: conservación trazable de datos fuente sin transformar;
 - **staging**: transformación intermedia, validación y artefactos derivados;
 - **reference**: datos de referencia estructurales, como geografía oficial;
-- **canonical / business**: entidades centrales del dominio, como `place`;
+- **canonical / business**: entidades centrales del dominio, como `place`, `place_source_ref` y `review`;
+- **AI derived layer**: entidades derivadas de IA como platos, menciones, sentimiento, señales y ranking;
 - **artifacts / ops**: logs, perfiles, resúmenes y resultados de comprobación;
-- **nlp_corpus**: datasets preparados para futuras tareas de procesamiento de lenguaje natural.
+- **views / query layer**: vistas SQL y scripts de consulta para explotar resultados.
 
 ### Flujo conceptual
 
@@ -147,8 +178,11 @@ Fuentes externas
 → enriquecimiento geográfico
 → deduplicación / matching
 → persistencia canónica
-→ comprobaciones
-→ corpus / análisis posterior
+→ reviews
+→ procesamiento IA
+→ señales
+→ ranking
+→ vistas / demo de consulta
 ```
 
 ---
@@ -168,7 +202,16 @@ Fuentes externas
 - RapidFuzz
 - pytest
 - logging
-- Jupyter
+- Jupyter / notebooks
+
+### IA / NLP
+
+- Transformers para detección de platos mediante NER
+- Dataset BIO para entrenamiento NER
+- Normalización híbrida basada en reglas, aliases y limpieza textual
+- Sentimiento híbrido por mención
+- Agregación de señales
+- Ranking explicable basado en scoring
 
 ### Persistencia y geodatos
 
@@ -192,7 +235,7 @@ El pipeline se apoya en un modelo relacional diseñado para separar claramente:
 - trazabilidad;
 - calidad;
 - reviews operativas;
-- corpus externo para NLP.
+- corpus y resultados derivados de IA.
 
 ### Núcleo de negocio
 
@@ -221,15 +264,33 @@ El pipeline se apoya en un modelo relacional diseñado para separar claramente:
 
 - `validation_issue`
 
-### NLP / corpus externo
+### Capa IA integrada
 
-En la fase Yelp se trabaja inicialmente con ficheros JSONL de corpus, no con importación masiva directa a tablas operativas.
+- `ai_model_version`
+- `ai_pipeline_run`
+- `dish`
+- `dish_alias`
+- `dish_mention`
+- `dish_mention_sentiment`
+- `dish_place_signal`
+- `hidden_gem_candidate`
+
+### Vistas IA
+
+- `vw_ai_pipeline_run_summary`
+- `vw_ai_dish_place_signals`
+- `vw_ai_hidden_gem_candidate_detail`
+- `vw_ai_hidden_gems_yelp_top`
+- `vw_ai_hidden_gems_place_summary`
+- `vw_ai_hidden_gems_dish_summary`
+- `vw_ai_hidden_gems_city_summary`
+- `vw_ai_dish_mentions_with_sentiment`
 
 ---
 
 ## 9. Estado actual del proyecto
 
-El proyecto ya cuenta con una base estructural montada en PostgreSQL/PostGIS y varias verticales funcionales.
+El proyecto ya cuenta con una base estructural montada en PostgreSQL/PostGIS, varias verticales funcionales y una primera integración IA completa sobre corpus Yelp.
 
 ### Verticales implementadas
 
@@ -281,8 +342,6 @@ Primer batch validado:
 reviews vinculadas a place/place_source_ref/barrio
 ```
 
-### Vertical en desarrollo
-
 #### Yelp Open Dataset
 
 - dataset `.tar` descargado localmente;
@@ -290,8 +349,44 @@ reviews vinculadas a place/place_source_ref/barrio
 - extracción controlada de `business.json` y `review.json`;
 - perfilado JSON Lines;
 - subset de negocios gastronómicos;
-- subset inicial de reviews gastronómicas;
-- construcción de corpus NLP en curso.
+- subset de reviews gastronómicas;
+- construcción de corpus IA/NLP;
+- carga prototipo de negocios y reviews Yelp en PostgreSQL;
+- uso como base experimental para el módulo IA completo.
+
+### Módulo IA integrado
+
+Se ha construido e integrado una cadena IA completa:
+
+```text
+reviews Yelp
+→ detección de platos
+→ normalización de platos
+→ sentimiento por mención
+→ agregación de señales
+→ ranking Hidden Gems v1
+→ carga en PostgreSQL
+→ vistas SQL
+→ consultas demo
+```
+
+Estado final de carga IA:
+
+```text
+dish: 9.937
+dish_alias: 10.235
+dish_mention: 94.932
+dish_mention_sentiment: 94.932
+dish_place_signal: 31.036
+hidden_gem_candidate: 622
+```
+
+El ranking IA cargado está marcado como prototipo:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
 
 ---
 
@@ -308,6 +403,7 @@ hidden-gems-pipeline/
 │
 ├───data/
 │   ├───artifacts/
+│   │   ├───ai/
 │   │   ├───google_places_batches/
 │   │   ├───google_places_reviews_batches/
 │   │   ├───google_places_reviews_import/
@@ -328,6 +424,8 @@ hidden-gems-pipeline/
 │
 ├───db/
 │   ├───ddl/
+│   │   ├───07_ai_module.sql
+│   │   └───08_ai_views.sql
 │   ├───queries/
 │   └───seeds/
 │
@@ -340,7 +438,9 @@ hidden-gems-pipeline/
 │   ├───06_normalization/
 │   ├───07_quality/
 │   ├───08_operations/
-│   └───09_roadmap/
+│   ├───09_roadmap/
+│   ├───10_ai_module/
+│   └───11_ai_integration/
 │
 ├───notebooks/
 ├───scripts/
@@ -579,7 +679,7 @@ python -m scripts.check_google_places_reviews_batch `
 
 La vertical Yelp trabaja con el dataset descargado localmente en formato `.tar`.
 
-Yelp se usa como corpus externo para NLP, no como fuente operativa de locales de Sevilla.
+Yelp se usa como corpus externo para IA/NLP y como prototipo controlado de integración IA. No se considera fuente productiva de Sevilla.
 
 ### Ubicación local recomendada
 
@@ -640,7 +740,7 @@ python -m scripts.build_yelp_food_review_subset `
   --save-artifact
 ```
 
-### Corpus NLP Yelp
+### Corpus IA/NLP Yelp
 
 ```powershell
 python -m scripts.build_yelp_nlp_corpus `
@@ -650,9 +750,124 @@ python -m scripts.build_yelp_nlp_corpus `
   --save-artifact
 ```
 
+### Carga del núcleo Yelp para prototipo IA
+
+Carga negocios y reviews Yelp en el modelo canónico para poder conectar artefactos IA con `place` y `review`.
+
+```powershell
+python -m scripts.load_yelp_ai_core_reviews `
+  --businesses-path data/artifacts/ai/yelp/food_businesses.jsonl `
+  --reviews-path data/artifacts/ai/yelp/food_reviews.jsonl
+```
+
 ---
 
-## 14. Capas y artefactos principales
+## 14. Módulo IA e integración PostgreSQL
+
+La cadena IA se ha desarrollado primero en notebooks y después se ha integrado en PostgreSQL mediante tablas, loaders, checks, vistas y consultas demo.
+
+### Notebooks principales del módulo IA
+
+```text
+04_dish_detection_dataset_exploration.ipynb
+05_dish_ner_dataset_builder.ipynb
+06_dish_ner_transformer_training.ipynb
+07_dish_ner_inference_and_mentions.ipynb
+08_dish_normalization_and_catalog_builder.ipynb
+09_dish_mention_sentiment_hybrid_v1.ipynb
+10_dish_signal_aggregation.ipynb
+11_hidden_gems_ranking_v1.ipynb
+```
+
+### DDL IA
+
+```powershell
+# Ejecutar desde cliente SQL / pgAdmin / DBeaver
+# db/ddl/07_ai_module.sql
+# db/ddl/08_ai_views.sql
+```
+
+### Carga del catálogo IA
+
+```powershell
+python -m scripts.load_ai_dish_catalog `
+  --catalog-path data/artifacts/ai/normalization/dish_catalog_seed_v2.csv `
+  --aliases-path data/artifacts/ai/normalization/dish_aliases_seed_v2.csv `
+  --summary-path data/artifacts/ai/normalization/dish_normalization_summary_v2.json
+```
+
+Check:
+
+```powershell
+python -m scripts.check_ai_dish_catalog `
+  --catalog-path data/artifacts/ai/normalization/dish_catalog_seed_v2.csv `
+  --aliases-path data/artifacts/ai/normalization/dish_aliases_seed_v2.csv
+```
+
+### Check de preparación downstream
+
+```powershell
+python -m scripts.check_ai_downstream_import_readiness `
+  --mentions-path data/artifacts/ai/sentiment/dish_mentions_with_sentiment_hybrid_v1.jsonl `
+  --business-signals-path data/artifacts/ai/aggregation/dish_business_ranking_candidates_v1.csv `
+  --ranking-path data/artifacts/ai/ranking/hidden_gems_selected_candidates_v1.csv `
+  --report-path data/artifacts/ai/checks/check_ai_downstream_import_readiness_report.json
+```
+
+### Carga de menciones y sentimiento
+
+```powershell
+python -m scripts.load_ai_mentions_and_sentiment `
+  --mentions-path data/artifacts/ai/sentiment/dish_mentions_with_sentiment_hybrid_v1.jsonl `
+  --report-path data/artifacts/ai/sentiment/load_ai_mentions_and_sentiment_report.json
+```
+
+### Carga de señales y ranking
+
+```powershell
+python -m scripts.load_ai_signals_and_ranking `
+  --business-signals-path data/artifacts/ai/aggregation/dish_business_ranking_candidates_v1.csv `
+  --ranking-path data/artifacts/ai/ranking/hidden_gems_selected_candidates_v1.csv `
+  --report-path data/artifacts/ai/ranking/load_ai_signals_and_ranking_report.json
+```
+
+### Check final de ranking cargado
+
+```powershell
+python -m scripts.check_ai_ranking_loaded `
+  --report-path data/artifacts/ai/ranking/check_ai_ranking_loaded_report.json
+```
+
+### Demo de consulta
+
+Top general:
+
+```powershell
+python -m scripts.query_ai_ranking_demo `
+  --top-n 20
+```
+
+Detalle con menciones justificativas:
+
+```powershell
+python -m scripts.query_ai_ranking_demo `
+  --place-name "Sushi Ushi" `
+  --dish-name "sushi" `
+  --include-mentions `
+  --mentions-top-n 25
+```
+
+Exportación de resultados:
+
+```powershell
+python -m scripts.query_ai_ranking_demo `
+  --top-n 50 `
+  --export-dir data/artifacts/ai/query_demo
+```
+
+---
+
+## 15. Capas y artefactos principales
 
 ### Raw
 
@@ -692,7 +907,25 @@ Contiene datasets locales grandes no versionados, como Yelp Open Dataset.
 data/artifacts/
 ```
 
-Contiene perfiles, checks, summaries y logs.
+Contiene perfiles, checks, summaries, logs y artefactos IA.
+
+### AI artifacts
+
+```text
+data/artifacts/ai/
+```
+
+Contiene salidas del módulo IA:
+
+```text
+normalization/
+sentiment/
+aggregation/
+ranking/
+checks/
+query_demo/
+yelp/
+```
 
 ### NLP corpus
 
@@ -700,11 +933,11 @@ Contiene perfiles, checks, summaries y logs.
 data/artifacts/nlp_corpus/
 ```
 
-Contiene corpus preparados para futuras fases de NLP.
+Contiene corpus preparados para tareas de NLP.
 
 ---
 
-## 15. Reglas importantes de Git
+## 16. Reglas importantes de Git
 
 No deben subirse al repositorio:
 
@@ -714,6 +947,8 @@ data/raw/
 data/staging/**/*.jsonl
 data/staging/**/*.txt
 data/artifacts/nlp_corpus/*.jsonl
+data/artifacts/ai/**/*.jsonl
+data/artifacts/ai/**/*.csv
 .env
 ```
 
@@ -732,7 +967,7 @@ summaries pequeños si se decide conservarlos
 
 ---
 
-## 16. Principios de diseño seguidos
+## 17. Principios de diseño seguidos
 
 El desarrollo del pipeline sigue estas reglas:
 
@@ -742,16 +977,21 @@ El desarrollo del pipeline sigue estas reglas:
 - no fusionar fuentes directamente;
 - construir `place` como entidad canónica interna;
 - mantener separación clara entre representación fuente y entidad negocio;
+- usar `place_id` como eje interno, no `business_id` externo;
 - hacer verticales completas, no piezas aisladas;
 - validar cada paso con checks reproducibles;
 - escalar por tandas pequeñas;
-- separar datos operativos de corpus NLP;
+- separar datos operativos de corpus IA/NLP;
 - no guardar reviews huérfanas;
-- no usar Yelp como fuente operativa de Sevilla en esta fase.
+- no insertar menciones IA sin `review_id` canónico;
+- no insertar señales IA sin `place_id` y `dish_id` resueltos;
+- versionar modelos, reglas y ejecuciones IA;
+- mantener Yelp como prototipo IA, no como producción Sevilla;
+- mantener el ranking Sevilla futuro separado del ranking `yelp_prototype`.
 
 ---
 
-## 17. Documentación detallada
+## 18. Documentación detallada
 
 La documentación extensa del proyecto está organizada en `docs/`.
 
@@ -806,9 +1046,39 @@ Incluye verticales operativas:
 - Google Places Reviews;
 - Yelp Open Dataset.
 
+### Módulo IA
+
+```text
+docs/10_ai_module/
+```
+
+Documenta la fase experimental IA:
+
+- detección de platos;
+- normalización;
+- sentimiento por mención;
+- agregación;
+- ranking Hidden Gems v1;
+- resultados y limitaciones.
+
+### Integración IA
+
+```text
+docs/11_ai_integration/
+```
+
+Documenta la integración real de la capa IA en PostgreSQL:
+
+- schema IA;
+- loaders;
+- checks;
+- vistas SQL;
+- estado actual;
+- próximos pasos.
+
 ---
 
-## 18. Roadmap resumido
+## 19. Roadmap resumido
 
 ### Ya implementado
 
@@ -823,28 +1093,70 @@ Incluye verticales operativas:
 - primera tanda real de reviews importadas;
 - perfilado y extracción de Yelp Open Dataset;
 - subset de negocios gastronómicos de Yelp;
-- subset inicial de reviews gastronómicas de Yelp.
+- subset de reviews gastronómicas de Yelp;
+- corpus IA/NLP Yelp;
+- entrenamiento y evaluación de Dish NER;
+- normalización de platos;
+- sentimiento híbrido por mención;
+- agregación de señales;
+- ranking Hidden Gems v1;
+- schema IA en PostgreSQL;
+- carga de catálogo, menciones, sentimiento, señales y ranking;
+- vistas SQL de consulta IA;
+- script demo de consulta IA.
 
-### En curso
+### En curso / siguiente fase
 
-- construcción de corpus NLP Yelp;
-- checks específicos del corpus;
-- documentación de la vertical Yelp.
+- actualización de documentación general del repositorio;
+- preparación de flujo IA desde reviews reales exportadas desde PostgreSQL;
+- piloto con reviews de Google Places Sevilla;
+- evaluación de idioma, volumen y calidad textual;
+- diseño de adaptación del módulo IA a español / multilingüe.
 
 ### Próximos pasos
 
-- cerrar vertical Yelp Open Dataset;
-- diseñar módulo NLP inicial;
-- extracción básica de platos;
-- sentimiento general de review;
-- sentimiento asociado a menciones de platos;
-- diseño de `dish_mention`, `place_dish_score` y ranking por barrio;
-- exposición mínima con FastAPI.
+- crear `export_reviews_for_ai.py`;
+- crear checks de exportación IA desde `review`;
+- probar la cadena IA sobre reviews reales de Google Places;
+- incorporar `neighborhood_id` y `district_id` al ranking productivo;
+- generar ranking `sevilla_neighborhood`;
+- marcar candidatos Sevilla como `is_production_ready = true` solo cuando estén validados;
+- exponer resultados mínimos con FastAPI o dashboard.
 
 ---
 
-## 19. Estado del proyecto
+## 20. Estado del proyecto
 
-Este repositorio se encuentra en una fase activa de desarrollo, con una base de datos ya montada, varias verticales cerradas y una vertical Yelp en construcción para preparar el futuro módulo NLP.
+Este repositorio se encuentra en una fase activa de desarrollo, con una base de datos ya montada, varias verticales cerradas y una primera capa IA integrada de extremo a extremo.
 
-El objetivo no es solo obtener datos, sino construir un pipeline sólido, trazable y extensible que sirva como base real para descubrir, analizar y rankear platos destacados por barrio en fases posteriores de Hidden Gems.
+El estado actual puede resumirse así:
+
+```text
+Datos operativos Sevilla / Google / OSM
+→ base canónica place/review/geografía
+
+Yelp prototype corpus
+→ módulo IA experimental
+→ resultados cargados en PostgreSQL
+→ ranking yelp_prototype consultable
+```
+
+El ranking IA actual no es todavía el ranking final de Sevilla por barrios. Es un prototipo validado sobre Yelp que demuestra que la arquitectura funciona:
+
+```text
+review
+→ dish_mention
+→ dish_mention_sentiment
+→ dish_place_signal
+→ hidden_gem_candidate
+→ vistas SQL
+→ consultas demo
+```
+
+El siguiente objetivo del proyecto es adaptar esta cadena a reviews reales de Sevilla y producir rankings por barrio con:
+
+```text
+ranking_scope = sevilla_neighborhood
+is_production_ready = true
+neighborhood_id != null
+```

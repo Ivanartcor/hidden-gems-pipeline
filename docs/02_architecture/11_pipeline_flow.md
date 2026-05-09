@@ -1,19 +1,21 @@
-# Flujo del pipeline
+# 11. Flujo del pipeline
 
 ## 1. Objetivo del flujo del pipeline
 
 El flujo del pipeline define cómo se transforma un dato bruto procedente de una fuente externa en una entidad útil, trazable y explotable dentro del sistema Hidden Gems.
 
-No se trata de una única ejecución lineal sin control, sino de una cadena de fases bien diferenciadas donde cada una cumple una función concreta:
+No se trata de una única ejecución lineal sin control, sino de una cadena de fases diferenciadas donde cada una cumple una función concreta:
 
-* adquirir
-* conservar
-* validar
-* transformar
-* enriquecer
-* deduplicar
-* persistir
-* comprobar
+- adquirir;
+- conservar;
+- validar;
+- transformar;
+- enriquecer;
+- deduplicar;
+- persistir;
+- comprobar;
+- derivar señales IA;
+- exponer resultados consultables.
 
 Este diseño permite trabajar con fuentes heterogéneas manteniendo consistencia y control en cada paso.
 
@@ -23,9 +25,22 @@ Este diseño permite trabajar con fuentes heterogéneas manteniendo consistencia
 
 A nivel general, el pipeline sigue este recorrido:
 
-**fuente externa → conector → source_run → raw_asset → staging → normalización / enriquecimiento → deduplicación / matching → persistencia canónica o de referencia → comprobación**
+```text
+fuente externa
+→ conector / loader
+→ source_run
+→ raw_asset
+→ staging
+→ normalización / enriquecimiento
+→ deduplicación / matching
+→ persistencia canónica o de referencia
+→ checks
+→ capa IA derivada
+→ vistas de consulta
+→ demo / explotación posterior
+```
 
-Aunque cada vertical tiene sus particularidades, el patrón general es el mismo.
+Aunque cada vertical tiene sus particularidades, el patrón general es el mismo: **ningún dato relevante entra sin trazabilidad y ninguna salida derivada se da por válida sin comprobación**.
 
 ---
 
@@ -37,18 +52,19 @@ Antes de procesar datos se crea un registro en `source_run`, que representa una 
 
 ### Qué se registra aquí
 
-* sistema fuente
-* tipo de ejecución
-* trigger
-* estado inicial
-* metadata básica de la petición
+- sistema fuente;
+- tipo de ejecución;
+- trigger;
+- estado inicial;
+- metadata básica de la petición;
+- contadores y resultado final.
 
 ### Para qué sirve
 
-* trazabilidad temporal
-* auditoría
-* control del ciclo de vida de una ejecución
-* relación con assets raw y validaciones posteriores
+- trazabilidad temporal;
+- auditoría;
+- control del ciclo de vida de una ejecución;
+- relación con assets raw y validaciones posteriores.
 
 ---
 
@@ -58,17 +74,18 @@ A continuación entra en juego el conector correspondiente.
 
 El conector se encarga de:
 
-* construir la consulta o petición a la fuente
-* realizar la descarga o lectura
-* capturar la respuesta original
-* devolver el payload sin mezclar todavía con lógica de negocio
+- construir la consulta o petición a la fuente;
+- realizar la descarga o lectura;
+- capturar la respuesta original;
+- devolver el payload sin mezclar todavía con lógica de negocio.
 
 ### Ejemplos
 
-* Sevilla Geo: lectura o descarga de un GeoJSON de barrios
-* Overpass: ejecución de una query para POIs gastronómicos dentro de un bbox
-
-En esta fase todavía no se decide cómo va a quedar el dato en el modelo final.
+- Sevilla Geo: lectura o descarga de un GeoJSON de barrios.
+- Overpass: ejecución de una query para POIs gastronómicos dentro de un bbox.
+- Google Places: Text Search para descubrir locales.
+- Google Places Reviews: Place Details para extraer reviews de locales existentes.
+- Yelp Open Dataset: lectura controlada de ficheros bulk para corpus IA.
 
 ---
 
@@ -76,33 +93,26 @@ En esta fase todavía no se decide cómo va a quedar el dato en el modelo final.
 
 Una vez obtenida la respuesta, el sistema la almacena en la capa `raw`.
 
-Esto genera dos resultados:
+Esto genera dos resultados.
 
 ### 5.1. Persistencia física
 
-El asset se guarda en disco dentro de `data/raw/`.
+El asset se guarda en disco dentro de `data/raw/` o en la ruta correspondiente de datos externos/staging cuando se trabaja con datasets bulk.
 
 ### 5.2. Persistencia lógica
 
 Se crea un registro en `raw_asset` con metadata como:
 
-* ruta
-* formato
-* tamaño
-* hash
-* fuente
-* ejecución asociada
+- ruta;
+- formato;
+- tamaño;
+- hash;
+- fuente;
+- ejecución asociada.
 
 ### Objetivo
 
-Garantizar que siempre existe una copia fiel del input original.
-
-Esto permite:
-
-* volver a ejecutar transformaciones
-* auditar errores
-* comparar cambios entre ejecuciones
-* no depender de que la fuente externa siga respondiendo igual
+Garantizar que siempre existe una copia fiel o una referencia auditable del input original.
 
 ---
 
@@ -114,31 +124,34 @@ Esta validación no intenta todavía entender el dominio completo, sino detectar
 
 ### Ejemplos de validación estructural
 
-* comprobar que un GeoJSON sea `FeatureCollection`
-* comprobar que exista `features`
-* comprobar que un JSON de Overpass tenga `elements`
-* comprobar que existan campos mínimos para continuar
+- comprobar que un GeoJSON sea `FeatureCollection`;
+- comprobar que exista `features`;
+- comprobar que un JSON de Overpass tenga `elements`;
+- comprobar que Google Places devuelva campos mínimos;
+- comprobar que un JSONL de Yelp pueda leerse línea a línea;
+- comprobar columnas esperadas en artefactos IA.
 
 ### Resultado posible
 
-* continuar el flujo
-* registrar incidencias en `validation_issue`
-* marcar elementos problemáticos
-* rechazar partes del input si son imposibles de tratar
+- continuar el flujo;
+- registrar incidencias en `validation_issue`;
+- marcar elementos problemáticos;
+- rechazar partes del input si son imposibles de tratar.
 
 ---
 
 ## 7. Fase 5. Transformación a staging
 
-En esta fase se empieza a traducir la estructura fuente a una estructura interna intermedia.
+En esta fase se traduce la estructura fuente a una estructura interna intermedia.
 
 Aquí se realizan tareas como:
 
-* limpieza básica de texto
-* normalización de nombres
-* derivación de coordenadas utilizables
-* extracción de campos relevantes
-* construcción de candidatos intermedios
+- limpieza básica de texto;
+- normalización de nombres;
+- derivación de coordenadas utilizables;
+- extracción de campos relevantes;
+- construcción de candidatos intermedios;
+- generación de summaries y artefactos QA.
 
 ### Sevilla Geo
 
@@ -146,7 +159,15 @@ El raw geográfico se transforma en registros intermedios preparados para poblar
 
 ### Overpass
 
-Los elementos OSM se convierten en `NormalizedPlaceCandidate`, una estructura común que servirá también para futuras fuentes como Google Places y Yelp.
+Los elementos OSM se convierten en candidatos normalizados de local.
+
+### Google Places
+
+Las respuestas de Text Search se transforman en candidatos canónicos comparables con otras fuentes.
+
+### Yelp Open Dataset
+
+El dataset se transforma en subsets gastronómicos y corpus preparado para IA.
 
 ---
 
@@ -156,16 +177,17 @@ Una vez generada la salida staging, el proyecto puede producir artefactos de an�
 
 ### Ejemplos
 
-* frecuencia de tags en Overpass
-* categorías más frecuentes
-* porcentaje de candidatos sin nombre
-* problemas estructurales recurrentes
+- frecuencia de tags en Overpass;
+- categorías más frecuentes;
+- porcentaje de candidatos sin nombre;
+- volumen de reviews útiles;
+- distribución de splits de corpus IA;
+- distribución de etiquetas de sentimiento;
+- checks de mapeo entre artefactos IA y base de datos.
 
 ### Objetivo
 
-Tomar decisiones mejores antes de consolidar datos en el modelo principal.
-
-Esta fase es muy importante porque evita diseñar normalizaciones o matching a ciegas.
+Tomar decisiones mejores antes de consolidar datos en el modelo principal o en la capa IA.
 
 ---
 
@@ -177,18 +199,22 @@ Después de transformar los datos, el pipeline puede aplicar lógica adicional p
 
 Uno de los más importantes en este proyecto es la asignación territorial:
 
-* barrio
-* distrito
-* método de asignación
-* confianza
+- barrio;
+- distrito;
+- método de asignación;
+- confianza.
 
 Esto permite pasar de una coordenada aislada a una ubicación explotable para el análisis por barrio.
 
-Más adelante también podrán existir enriquecimientos como:
+### Enriquecimiento textual
 
-* normalización avanzada de categorías
-* señales de marca o cadena
-* atributos de negocio útiles para ranking
+En la fase IA, las reviews se enriquecen con:
+
+- menciones de platos;
+- normalización de platos;
+- sentimiento por mención;
+- señales agregadas;
+- ranking de candidatos.
 
 ---
 
@@ -198,23 +224,35 @@ No todos los registros fuente deben llegar tal cual al modelo canónico.
 
 Antes de persistir en `place`, el sistema necesita decidir:
 
-* si varios registros de una misma fuente representan el mismo local
-* si un registro de una fuente debe enlazarse con un `place` ya existente
-* o si debe crear una nueva entidad canónica
+- si varios registros de una misma fuente representan el mismo local;
+- si un registro de una fuente debe enlazarse con un `place` ya existente;
+- o si debe crear una nueva entidad canónica.
 
 ### 10.1. Deduplicación intra-fuente
 
 Ejemplo actual:
 
-* Overpass agrupa duplicados probables dentro de su propia salida
+- Overpass agrupa duplicados probables dentro de su propia salida.
 
 ### 10.2. Matching inter-fuente
 
-Fase prevista para el futuro:
+El sistema está preparado para enlazar OSM, Google Places y otras fuentes contra un mismo `place`.
 
-* enlazar OSM, Google Places y Yelp contra un mismo `place`
+### 10.3. Mapeo IA contra core
 
-Esta fase es crítica porque es donde se protege la coherencia del modelo canónico.
+Para integrar IA, se resuelve el puente:
+
+```text
+source_place_record_id / business_id
+→ place_source_ref
+→ place_id
+
+source_review_id
+→ review
+→ review_id interno
+```
+
+Este paso evita cargar menciones o rankings huérfanos.
 
 ---
 
@@ -226,21 +264,31 @@ Una vez que el dato ha superado validación, transformación y deduplicación, s
 
 Para fuentes estructurales como Sevilla Geo:
 
-* `district`
-* `neighborhood`
+- `district`;
+- `neighborhood`.
 
 ### 11.2. Persistencia canónica
 
-Para fuentes de negocio como Overpass:
+Para fuentes de negocio:
 
-* `place`
-* `place_source_ref`
-* `place_category`
-* `place_neighborhood_assignment`
+- `place`;
+- `place_source_ref`;
+- `review`;
+- `place_category`;
+- `place_neighborhood_assignment`.
 
-### Idea clave
+### 11.3. Persistencia IA derivada
 
-La persistencia no consiste en copiar directamente la fuente, sino en escribir una representación interna coherente y trazable.
+Para resultados de inteligencia artificial:
+
+- `dish`;
+- `dish_alias`;
+- `dish_mention`;
+- `dish_mention_sentiment`;
+- `dish_place_signal`;
+- `hidden_gem_candidate`.
+
+La persistencia IA no sustituye al dato canónico, sino que lo complementa.
 
 ---
 
@@ -252,13 +300,17 @@ Para eso existe `validation_issue`.
 
 ### Qué puede registrarse aquí
 
-* campos ausentes
-* estructuras incorrectas
-* geografía no resoluble
-* candidatos no importables
-* problemas de calidad o matching
+- campos ausentes;
+- estructuras incorrectas;
+- geografía no resoluble;
+- candidatos no importables;
+- problemas de calidad o matching;
+- menciones sin review mapeable;
+- señales sin `place_id`;
+- candidatos IA sin `dish_id`;
+- inconsistencias de artefactos.
 
-Esta capa es fundamental para dar visibilidad a errores y mantener control sobre la calidad real del pipeline.
+La tabla `validation_issue` está preparada para registrar incidencias sobre entidades core y entidades IA.
 
 ---
 
@@ -270,99 +322,168 @@ Por eso existen scripts específicos de verificación.
 
 ### Qué suelen comprobar
 
-* número de registros cargados
-* integridad de geometrías
-* presencia de asignaciones geográficas
-* categorías creadas
-* incidencias registradas
-* coherencia general del import
+- número de registros cargados;
+- integridad de geometrías;
+- presencia de asignaciones geográficas;
+- categorías creadas;
+- incidencias registradas;
+- coherencia general del import;
+- ausencia de huérfanos IA;
+- mapeo correcto entre `review`, `place`, `dish` y ranking.
 
-Esto convierte el pipeline en un flujo controlado de extremo a extremo y no en una simple importación ciega.
+Ejemplos IA:
 
----
-
-## 14. Dos tipos de flujo actualmente implementados
-
-## 14.1. Flujo Sevilla Geo
-
-### Resumen
-
-1. inicio de `source_run`
-2. lectura o descarga del dataset geográfico
-3. guardado raw
-4. validación del GeoJSON
-5. transformación de barrios y distritos
-6. importación a tablas de referencia
-7. comprobación final
-
-### Resultado
-
-Se obtiene la base territorial sobre la que se apoyan el resto de verticales.
+- `check_ai_dish_catalog.py`;
+- `check_ai_downstream_import_readiness.py`;
+- `check_ai_ranking_loaded.py`.
 
 ---
 
-## 14.2. Flujo Overpass
+## 14. Fase 12. Consulta y explotación
 
-### Resumen
+Una vez validados los datos, el sistema puede exponerlos mediante vistas SQL y scripts de consulta.
 
-1. inicio de `source_run`
-2. ejecución de query Overpass
-3. guardado raw
-4. validación estructural de `elements`
-5. transformación a `NormalizedPlaceCandidate`
-6. perfilado y QA
-7. deduplicación intra-fuente
-8. importación a `place` y tablas relacionadas
-9. comprobación final
+La capa IA cuenta con:
 
-### Resultado
+```text
+db/ddl/08_ai_views.sql
+scripts/query_ai_ranking_demo.py
+```
 
-Se obtiene una primera fuente de negocio completa integrada en el modelo canónico.
+Estas piezas permiten consultar:
 
----
-
-## 15. Flujo futuro previsto
-
-Cuando entren Google Places y Yelp, el flujo seguirá el mismo patrón general, con transformadores específicos y una fase de matching cada vez más importante.
-
-### Patrón esperado
-
-* adquisición fuente
-* raw
-* staging
-* candidato común
-* matching con `place`
-* actualización de `place_source_ref`
-* explotación posterior
-
-Esto confirma que el pipeline no está diseñado para una sola fuente aislada, sino para un ecosistema multi-fuente.
+- top candidatos Hidden Gems;
+- resumen por local;
+- resumen por plato;
+- resumen por ciudad;
+- detalle de candidato;
+- menciones justificativas.
 
 ---
 
-## 16. Ventajas de este flujo
+## 15. Flujos actualmente implementados
 
-El diseño actual del pipeline ofrece varias ventajas:
+## 15.1. Flujo Sevilla Geo
 
-* permite depurar cada fase por separado
-* hace más fácil añadir nuevas fuentes
-* evita mezclar lógica de adquisición con lógica de negocio
-* mejora la calidad del dato antes de consolidarlo
-* facilita observabilidad y testing
-* mantiene control real sobre la evolución del sistema
+1. inicio de `source_run`;
+2. lectura o descarga del dataset geográfico;
+3. guardado raw;
+4. validación del GeoJSON;
+5. transformación de barrios y distritos;
+6. importación a tablas de referencia;
+7. comprobación final.
+
+Resultado:
+
+- base territorial sobre la que se apoyan el resto de verticales.
 
 ---
 
-## 17. Conclusión
+## 15.2. Flujo Overpass
+
+1. inicio de `source_run`;
+2. ejecución de query Overpass;
+3. guardado raw;
+4. validación estructural de `elements`;
+5. transformación a candidato común;
+6. perfilado y QA;
+7. deduplicación intra-fuente;
+8. importación a `place` y tablas relacionadas;
+9. comprobación final.
+
+Resultado:
+
+- fuente abierta integrada en el modelo canónico.
+
+---
+
+## 15.3. Flujo Google Places Text Search
+
+1. ejecución de consulta Text Search;
+2. guardado raw;
+3. transformación a candidato normalizado;
+4. deduplicación;
+5. importación canónica;
+6. batch por barrios o distritos;
+7. check global de batch.
+
+Resultado:
+
+- locales procedentes de Google Places integrados como `place` y `place_source_ref`.
+
+---
+
+## 15.4. Flujo Google Places Reviews
+
+1. selección de locales con referencia Google válida;
+2. ejecución de Place Details;
+3. extracción de reviews;
+4. raw y staging;
+5. importación en `review`;
+6. checks individuales y batch.
+
+Resultado:
+
+- reviews reales asociadas a locales canónicos.
+
+---
+
+## 15.5. Flujo Yelp + IA prototipo
+
+1. preparación de negocios y reviews Yelp gastronómicos;
+2. creación de corpus IA;
+3. detección de platos;
+4. normalización de platos;
+5. sentimiento por mención;
+6. agregación de señales;
+7. ranking Hidden Gems v1;
+8. carga en PostgreSQL;
+9. checks de integridad;
+10. vistas y demo de consulta.
+
+Resultado:
+
+- prototipo IA completo con ranking `yelp_prototype`, no producción Sevilla.
+
+---
+
+## 16. Flujo futuro previsto
+
+El siguiente flujo objetivo será:
+
+```text
+Google Places Reviews Sevilla
+→ export_reviews_for_ai
+→ detección de platos / adaptación multilingüe
+→ sentimiento por mención
+→ señales por place + dish
+→ ranking por barrio
+→ hidden_gem_candidate con ranking_scope = sevilla_neighborhood
+```
+
+Esto convertirá el prototipo IA en una capa productiva para Sevilla.
+
+---
+
+## 17. Ventajas de este flujo
+
+El diseño actual ofrece varias ventajas:
+
+- permite depurar cada fase por separado;
+- hace más fácil añadir nuevas fuentes;
+- evita mezclar lógica de adquisición con lógica de negocio;
+- mejora la calidad del dato antes de consolidarlo;
+- facilita observabilidad y testing;
+- mantiene control real sobre la evolución del sistema;
+- permite recalcular resultados IA sin destruir histórico;
+- prepara el ranking por barrio sin contaminar el core.
+
+---
+
+## 18. Conclusión
 
 El flujo del pipeline de Hidden Gems está concebido para transformar datos heterogéneos y ruidosos en una base canónica controlada, útil y preparada para crecer.
 
-La clave no está solo en descargar información, sino en recorrer una secuencia disciplinada de pasos donde cada fase aporta:
+La clave no está solo en descargar información, sino en recorrer una secuencia disciplinada donde cada fase aporta trazabilidad, validación, estructura, calidad, enriquecimiento, persistencia coherente y explotación inteligente.
 
-* trazabilidad
-* validación
-* estructura
-* calidad
-* enriquecimiento
-* persistencia coherente
-
-Ese enfoque es el que convierte el repositorio en un pipeline real y no simplemente en una colección de scripts sueltos.
+Ese enfoque es el que convierte el repositorio en un pipeline real y no en una colección de scripts sueltos.
