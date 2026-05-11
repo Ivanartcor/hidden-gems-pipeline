@@ -2,15 +2,20 @@
 
 ## Objetivo
 
-Este documento describe los scripts utilizados para cargar los artefactos IA en PostgreSQL y validar cada fase de integración.
+Este documento describe los scripts utilizados para cargar artefactos IA en PostgreSQL y validar cada fase de integración.
 
-La integración se hizo de forma incremental para evitar insertar datos huérfanos o resultados IA sin conexión con `place`, `review` y `dish`.
+La integración se ha realizado de forma incremental para evitar insertar datos huérfanos o resultados IA sin conexión con `place`, `review` y `dish`.
+
+Actualmente hay dos familias de loaders/checks:
+
+1. **Integración Yelp prototype**, usada para validar la arquitectura IA completa.
+2. **Integración Sevilla pilot**, usada para cargar el primer ranking piloto local generado desde Google Places Reviews.
 
 ---
 
-## Orden de carga utilizado
+# 1. Integración Yelp prototype
 
-El orden correcto fue:
+## 1.1. Orden de carga utilizado
 
 ```text
 1. load_ai_dish_catalog.py
@@ -35,13 +40,11 @@ hidden_gem_candidate depende de dish_place_signal
 
 ---
 
-# 1. `load_ai_dish_catalog.py`
+## 1.2. `load_ai_dish_catalog.py`
 
-## Responsabilidad
+Carga el catálogo de platos y aliases.
 
-Carga el catálogo de platos y aliases en PostgreSQL.
-
-## Entradas
+Entradas:
 
 ```text
 dish_catalog_seed_v2.csv
@@ -49,7 +52,7 @@ dish_aliases_seed_v2.csv
 dish_normalization_summary_v2.json
 ```
 
-## Tablas afectadas
+Tablas afectadas:
 
 ```text
 ai_model_version
@@ -58,26 +61,7 @@ dish
 dish_alias
 ```
 
-## Ejecución recomendada
-
-```powershell
-python -m scripts.load_ai_dish_catalog `
-  --catalog-path data/artifacts/ai/normalization/dish_catalog_seed_v2.csv `
-  --aliases-path data/artifacts/ai/normalization/dish_aliases_seed_v2.csv `
-  --summary-path data/artifacts/ai/normalization/dish_normalization_summary_v2.json `
-  --dry-run
-```
-
-Carga real:
-
-```powershell
-python -m scripts.load_ai_dish_catalog `
-  --catalog-path data/artifacts/ai/normalization/dish_catalog_seed_v2.csv `
-  --aliases-path data/artifacts/ai/normalization/dish_aliases_seed_v2.csv `
-  --summary-path data/artifacts/ai/normalization/dish_normalization_summary_v2.json
-```
-
-## Resultado validado
+Resultado validado:
 
 ```text
 dish = 9.937
@@ -87,124 +71,30 @@ ai_model_version = 5
 
 ---
 
-# 2. `check_ai_dish_catalog.py`
+## 1.3. `check_ai_dish_catalog.py`
 
-## Responsabilidad
+Comprueba:
 
-Comprueba que el catálogo IA se ha cargado correctamente.
-
-## Verificaciones
-
-- Total de platos.
-- Total de aliases.
-- Distribución por idioma.
-- Distribución por tipo de alias.
-- Platos sin alias.
-- Platos sin alias canónico.
-- Duplicados potenciales.
-- Aliases compartidos por varios platos.
-
-## Ejecución básica
-
-```powershell
-python -m scripts.check_ai_dish_catalog
-```
-
-Con comparación contra CSV:
-
-```powershell
-python -m scripts.check_ai_dish_catalog `
-  --catalog-path data/artifacts/ai/normalization/dish_catalog_seed_v2.csv `
-  --aliases-path data/artifacts/ai/normalization/dish_aliases_seed_v2.csv
-```
-
-Con informe JSON:
-
-```powershell
-python -m scripts.check_ai_dish_catalog `
-  --catalog-path data/artifacts/ai/normalization/dish_catalog_seed_v2.csv `
-  --aliases-path data/artifacts/ai/normalization/dish_aliases_seed_v2.csv `
-  --report-path data/artifacts/ai/normalization/check_ai_dish_catalog_report.json
-```
+- total de platos;
+- total de aliases;
+- distribución por idioma;
+- distribución por tipo de alias;
+- platos sin alias;
+- aliases duplicados;
+- aliases compartidos por varios platos.
 
 ---
 
-# 3. `check_ai_downstream_import_readiness.py`
+## 1.4. `load_yelp_ai_core_reviews.py`
 
-## Responsabilidad
-
-Comprueba si la base está preparada para cargar las fases posteriores:
-
-```text
-dish_mention
-dish_mention_sentiment
-dish_place_signal
-hidden_gem_candidate
-```
-
-## Primera ejecución
-
-Antes de cargar el núcleo Yelp, el check indicó:
-
-```text
-ready_to_load_dish_mentions = false
-ready_to_load_dish_place_signals = false
-ready_to_load_hidden_gem_candidates = false
-```
-
-Esto era correcto, porque los artefactos IA de Yelp todavía no tenían correspondencia con `place` y `review`.
-
-## Ejecución después de cargar Yelp core
-
-```powershell
-python -m scripts.check_ai_downstream_import_readiness `
-  --mentions-path data/artifacts/ai/sentiment/dish_mentions_with_sentiment_hybrid_v1.jsonl `
-  --business-signals-path data/artifacts/ai/aggregation/dish_business_ranking_candidates_v1.csv `
-  --ranking-path data/artifacts/ai/ranking/hidden_gems_selected_candidates_v1.csv `
-  --report-path data/artifacts/ai/checks/check_ai_downstream_import_readiness_report_after_yelp_core.json
-```
-
-## Resultado validado después de Yelp core
-
-```text
-ready_to_load_dish_mentions = true
-ready_to_load_dish_place_signals = true
-ready_to_load_hidden_gem_candidates = true
-```
-
-Mapeos confirmados:
-
-```text
-mentions → review.source_review_id = 100%
-mentions → business/place mapping = 100%
-business_signals → business/place mapping = 100%
-ranking → business/place mapping = 100%
-dish names → dish = 100%
-```
-
----
-
-# 4. `load_yelp_ai_core_reviews.py`
-
-## Responsabilidad
-
-Carga el núcleo Yelp necesario para poder conectar los artefactos IA con el modelo canónico.
-
-Este script no carga resultados IA. Carga la base canónica necesaria:
+Carga el núcleo Yelp necesario para conectar artefactos IA con el modelo canónico:
 
 ```text
 Yelp business_id → place_source_ref → place
 Yelp review_id → review.source_review_id → review
 ```
 
-## Entradas
-
-```text
-food_businesses.jsonl
-food_reviews.jsonl
-```
-
-## Tablas afectadas
+Tablas afectadas:
 
 ```text
 source_system
@@ -215,90 +105,55 @@ place_source_ref
 review
 ```
 
-## Ejecución recomendada
-
-```powershell
-python -m scripts.load_yelp_ai_core_reviews `
-  --businesses-path data/artifacts/ai/yelp/food_businesses.jsonl `
-  --reviews-path data/artifacts/ai/yelp/food_reviews.jsonl `
-  --dry-run
-```
-
-Carga real:
-
-```powershell
-python -m scripts.load_yelp_ai_core_reviews `
-  --businesses-path data/artifacts/ai/yelp/food_businesses.jsonl `
-  --reviews-path data/artifacts/ai/yelp/food_reviews.jsonl
-```
-
-## Resultado validado
-
-Después de la carga, el sistema contenía:
+Resultado validado:
 
 ```text
-yelp_open_dataset source_run_count = 1
 yelp_open_dataset place_source_ref_count = 5.150
 yelp_open_dataset review_count = 79.882
 ```
 
-Y el total global de la base quedó en:
-
-```text
-place = 7.230
-review = 80.037
-```
-
-## Decisión importante
-
-Esta carga se considera parte del prototipo IA de Yelp. No representa todavía datos productivos de Sevilla.
-
 ---
 
-# 5. `load_ai_mentions_and_sentiment.py`
+## 1.5. `check_ai_downstream_import_readiness.py`
 
-## Responsabilidad
-
-Carga menciones de platos y sentimiento por mención.
-
-## Entrada
-
-```text
-dish_mentions_with_sentiment_hybrid_v1.jsonl
-```
-
-## Tablas afectadas
+Valida que se pueden cargar:
 
 ```text
 dish_mention
 dish_mention_sentiment
+dish_place_signal
+hidden_gem_candidate
 ```
 
-## Mapeos utilizados
+Mapeos requeridos:
 
 ```text
-artifact review_id → review.source_review_id → review_id interno
-artifact business_id → place_source_ref.source_record_id → place_id
-canonical_dish_name_v2 → dish.normalized_name → dish_id interno
+artifact review_id → review.source_review_id
+artifact business_id → place_source_ref.source_record_id
+canonical_dish_name_v2 → dish.normalized_name
 ```
 
-## Ejecución recomendada
+Resultado validado tras cargar Yelp core:
 
-```powershell
-python -m scripts.load_ai_mentions_and_sentiment `
-  --mentions-path data/artifacts/ai/sentiment/dish_mentions_with_sentiment_hybrid_v1.jsonl `
-  --dry-run
+```text
+ready_to_load_dish_mentions = true
+ready_to_load_dish_place_signals = true
+ready_to_load_hidden_gem_candidates = true
 ```
 
-Carga real con informe:
+---
 
-```powershell
-python -m scripts.load_ai_mentions_and_sentiment `
-  --mentions-path data/artifacts/ai/sentiment/dish_mentions_with_sentiment_hybrid_v1.jsonl `
-  --report-path data/artifacts/ai/sentiment/load_ai_mentions_and_sentiment_report.json
+## 1.6. `load_ai_mentions_and_sentiment.py`
+
+Carga:
+
+```text
+dish_mentions_with_sentiment_hybrid_v1.jsonl
+→ dish_mention
+→ dish_mention_sentiment
 ```
 
-## Resultado validado
+Resultado validado:
 
 ```text
 rows_total = 94.932
@@ -313,45 +168,19 @@ skipped_invalid_sentiment = 0
 
 ---
 
-# 6. `load_ai_signals_and_ranking.py`
+## 1.7. `load_ai_signals_and_ranking.py`
 
-## Responsabilidad
-
-Carga señales agregadas y candidatos finales del ranking.
-
-## Entradas
+Carga:
 
 ```text
 dish_business_ranking_candidates_v1.csv
+→ dish_place_signal
+
 hidden_gems_selected_candidates_v1.csv
+→ hidden_gem_candidate
 ```
 
-## Tablas afectadas
-
-```text
-dish_place_signal
-hidden_gem_candidate
-```
-
-## Ejecución recomendada
-
-```powershell
-python -m scripts.load_ai_signals_and_ranking `
-  --business-signals-path data/artifacts/ai/aggregation/dish_business_ranking_candidates_v1.csv `
-  --ranking-path data/artifacts/ai/ranking/hidden_gems_selected_candidates_v1.csv `
-  --dry-run
-```
-
-Carga real con informe:
-
-```powershell
-python -m scripts.load_ai_signals_and_ranking `
-  --business-signals-path data/artifacts/ai/aggregation/dish_business_ranking_candidates_v1.csv `
-  --ranking-path data/artifacts/ai/ranking/hidden_gems_selected_candidates_v1.csv `
-  --report-path data/artifacts/ai/ranking/load_ai_signals_and_ranking_report.json
-```
-
-## Resultado validado
+Resultado validado:
 
 ```text
 signals_upserted = 31.036
@@ -364,8 +193,6 @@ skipped_invalid_tier = 0
 ready_for_querying_ai_ranking = true
 ```
 
-## Decisión importante
-
 El ranking se carga como:
 
 ```text
@@ -375,22 +202,11 @@ is_production_ready = false
 
 ---
 
-# 7. `check_ai_ranking_loaded.py`
+## 1.8. `check_ai_ranking_loaded.py`
 
-## Responsabilidad
+Valida la integración completa.
 
-Valida la integración completa ya cargada en PostgreSQL.
-
-## Ejecución
-
-```powershell
-python -m scripts.check_ai_ranking_loaded `
-  --report-path data/artifacts/ai/ranking/check_ai_ranking_loaded_report.json
-```
-
-## Resultado final validado
-
-Conteos principales:
+Resultado final:
 
 ```text
 dish = 9.937
@@ -399,79 +215,280 @@ dish_mention = 94.932
 dish_mention_sentiment = 94.932
 dish_place_signal = 31.036
 hidden_gem_candidate = 622
-place = 7.230
-review = 80.037
-```
-
-Resumen de menciones:
-
-```text
-dish_mentions = 94.932
-reviews_with_mentions = 42.461
-places_with_mentions = 4.088
-dishes_mentioned = 9.937
-avg_ner_confidence = 0.97571
-```
-
-Resumen de señales:
-
-```text
-total_signals = 31.036
-places_with_signals = 4.088
-dishes_with_signals = 9.937
-rankable_signals = 3.841
-```
-
-Resumen de ranking:
-
-```text
-total_candidates = 622
-selected_candidates = 622
-min_score = 60.00283
-avg_score = 66.86828
-max_score = 82.92816
-production_ready_rows = 0
-```
-
-Integridad:
-
-```text
-orphan_dish_mentions_review = 0
-orphan_dish_mentions_place = 0
-orphan_dish_mentions_dish = 0
-orphan_sentiments_mention = 0
-orphan_signals_place = 0
-orphan_signals_dish = 0
-orphan_candidates_signal = 0
+orphan rows = 0
 ```
 
 ---
 
-## Observación sobre rendimiento
+# 2. Integración Sevilla pilot
 
-Durante una primera versión del check de readiness, una consulta con varios `LEFT JOIN` generó una operación pesada en PostgreSQL y provocó un error de disco temporal:
+## 2.1. Contexto
+
+Tras validar la arquitectura con Yelp, se ejecutó un flujo local sobre Google Places Reviews de Sevilla:
+
+```text
+Google Places Reviews Sevilla
+→ export_reviews_for_ai
+→ notebooks IA 12-17
+→ ranking sevilla_pilot
+→ loader PostgreSQL
+→ check PostgreSQL
+→ query demo
+```
+
+---
+
+## 2.2. `export_reviews_for_ai.py`
+
+Exporta reviews operativas desde PostgreSQL para ser procesadas por notebooks IA.
+
+Entrada lógica:
+
+```sql
+hidden_gems.review
+WHERE source_system = google_places
+  AND is_operational_review = true
+  AND is_training_eligible = true
+```
+
+Salida principal:
+
+```text
+data/artifacts/ai/sevilla/reviews_for_ai_google_places.jsonl
+```
+
+La exportación incluye información de:
+
+- review;
+- place;
+- place_source_ref;
+- barrio;
+- distrito;
+- rating;
+- idioma;
+- texto.
+
+---
+
+## 2.3. `check_ai_review_export.py`
+
+Valida que el JSONL exportado es apto para IA.
+
+Comprueba:
+
+- filas existentes;
+- IDs únicos;
+- reviews con texto;
+- places asociados;
+- barrios/distritos presentes;
+- idiomas;
+- longitudes de texto;
+- distribución por barrio/distrito.
+
+---
+
+## 2.4. Notebooks 12-17
+
+Los notebooks generan los artefactos que después se cargan en PostgreSQL:
+
+```text
+12_sevilla_reviews_exploration.ipynb
+13_sevilla_dish_detection.ipynb
+14_sevilla_dish_normalization_and_catalog.ipynb
+15_sevilla_mention_sentiment.ipynb
+16_sevilla_place_dish_signal_aggregation.ipynb
+17_sevilla_hidden_gems_ranking_pilot.ipynb
+```
+
+Artefactos principales:
+
+```text
+data/artifacts/ai/sevilla/dish_normalization/sevilla_dish_catalog_v1.csv
+data/artifacts/ai/sevilla/dish_normalization/sevilla_dish_aliases_v1.csv
+data/artifacts/ai/sevilla/sentiment/sevilla_dish_mentions_with_sentiment_v1.jsonl
+data/artifacts/ai/sevilla/aggregation/sevilla_place_dish_signals_v1.jsonl
+data/artifacts/ai/sevilla/ranking/sevilla_hidden_gems_candidates_all_v1.jsonl
+data/artifacts/ai/sevilla/ranking/sevilla_hidden_gems_selected_candidates_v1.jsonl
+```
+
+---
+
+## 2.5. `load_sevilla_ai_pilot_outputs.py`
+
+Carga el piloto IA Sevilla en PostgreSQL.
+
+Tablas afectadas:
+
+```text
+ai_model_version
+ai_pipeline_run
+dish
+dish_alias
+dish_mention
+dish_mention_sentiment
+dish_place_signal
+hidden_gem_candidate
+```
+
+Ejecución recomendada en dry-run:
+
+```powershell
+python -m scripts.load_sevilla_ai_pilot_outputs `
+  --dry-run
+```
+
+Carga real:
+
+```powershell
+python -m scripts.load_sevilla_ai_pilot_outputs `
+  --report-path data/artifacts/ai/sevilla/load_sevilla_ai_pilot_outputs_report.json
+```
+
+Resultado validado:
+
+```text
+model_versions_upserted = 5
+ai_runs_upserted = 5
+dishes_upserted = 190
+aliases_upserted = 243
+mentions_upserted = 2.979
+sentiments_upserted = 2.979
+signals_upserted = 2.212
+ranking_candidates_upserted = 256
+dry_run = false
+```
+
+Checks:
+
+```text
+no_missing_review_mapping = true
+no_missing_place_mapping = true
+no_missing_dish_mapping = true
+no_invalid_sentiment = true
+```
+
+---
+
+## 2.6. `check_sevilla_ai_pilot_loaded.py`
+
+Valida desde PostgreSQL que la carga del piloto Sevilla quedó consistente.
+
+Ejecución:
+
+```powershell
+python -m scripts.check_sevilla_ai_pilot_loaded `
+  --report-path data/artifacts/ai/sevilla/check_sevilla_ai_pilot_loaded_report.json
+```
+
+Resultado validado:
+
+```text
+ready_for_sevilla_pilot_queries = true
+errors = []
+warnings = []
+```
+
+Conteos validados:
+
+```text
+dish_catalog = 190
+dish_alias = 243
+dish_mention = 2.979
+dish_mention_sentiment = 2.979
+dish_place_signal = 2.212
+hidden_gem_candidate = 256
+hidden_gem_selected = 150
+```
+
+Estado del ranking:
+
+```text
+db_ranking_scope = other
+artifact_ranking_scope = sevilla_pilot
+ranking_version = sevilla_hidden_gems_ranking_pilot_v1
+is_production_ready = false
+```
+
+---
+
+## 2.7. `query_sevilla_hidden_gems_demo.py`
+
+Permite consultar el ranking Sevilla piloto desde las vistas IA.
+
+Ejemplo global:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --limit 30 `
+  --top-per-group 5
+```
+
+Filtro por distrito:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --district "Casco Antiguo" `
+  --limit 20
+```
+
+Filtro por barrio:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --neighborhood "TRIANA" `
+  --limit 20
+```
+
+Filtro por plato:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --dish "tarta de queso" `
+  --limit 20
+```
+
+Detalle con menciones:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --place-name "Golondrinas" `
+  --include-mentions `
+  --limit 10
+```
+
+Artefactos:
+
+```text
+data/artifacts/ai/sevilla/query_demo/
+  sevilla_demo_top_global.csv
+  sevilla_demo_top_by_district.csv
+  sevilla_demo_top_by_neighborhood.csv
+  sevilla_demo_top_by_dish.csv
+  sevilla_hidden_gems_query_demo_report.json
+```
+
+---
+
+# 3. Observaciones de rendimiento
+
+Durante una primera versión del check de readiness, una consulta con varios `LEFT JOIN` generó una operación pesada en PostgreSQL y provocó:
 
 ```text
 No space left on device
 ```
 
-La consulta fue corregida para hacer conteos separados y evitar productos intermedios grandes.
+La consulta se corrigió para hacer conteos separados y evitar productos intermedios grandes.
 
-La versión corregida debe mantenerse como script actual:
-
-```text
-scripts/check_ai_downstream_import_readiness.py
-```
+Esta lección aplica también a futuros checks: deben priorizar consultas simples, filtradas y trazables.
 
 ---
 
 ## Conclusión
 
-La cadena de carga y validación queda cerrada:
+La cadena de carga y validación queda cerrada tanto para Yelp prototype como para Sevilla pilot:
 
 ```text
 catálogo IA cargado
-núcleo Yelp cargado
 menciones cargadas
 sentimientos cargados
 señales cargadas
@@ -480,4 +497,4 @@ integridad validada
 ranking consultable
 ```
 
-El sistema está listo para explotación desde vistas SQL y scripts de consulta.
+El siguiente trabajo operativo no es volver a cargar los mismos datos, sino consolidar scripts demo finales, crear un dashboard y revisar la calidad del ranking desde uso real.

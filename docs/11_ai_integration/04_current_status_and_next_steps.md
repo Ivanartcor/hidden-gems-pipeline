@@ -1,10 +1,35 @@
 # 04 - Current Status and Next Steps
 
-## Estado actual
+## 1. Estado actual general
 
-La integración del módulo IA en PostgreSQL queda completada y validada.
+La integración del módulo IA en PostgreSQL queda completada y validada en dos niveles:
 
-Se han realizado estas fases:
+```text
+1. Yelp prototype
+   Corpus externo amplio usado para validar arquitectura IA.
+
+2. Sevilla pilot
+   Primer piloto local generado desde Google Places Reviews de Sevilla.
+```
+
+Esto significa que el proyecto ya no está solo en fase de preparación. Actualmente existe un flujo completo:
+
+```text
+reviews
+→ menciones de platos
+→ sentimiento por mención
+→ señales por local/plato
+→ ranking
+→ PostgreSQL
+→ vistas consultables
+→ scripts demo
+```
+
+---
+
+## 2. Estado validado: Yelp prototype
+
+Fases cerradas:
 
 ```text
 1. Diseño y creación del schema IA.
@@ -19,11 +44,7 @@ Se han realizado estas fases:
 10. Validación final de integridad.
 ```
 
----
-
-## Estado de datos cargados
-
-El check final confirma los siguientes conteos:
+Conteos:
 
 | Tabla | Registros |
 |---|---:|
@@ -33,102 +54,16 @@ El check final confirma los siguientes conteos:
 | `dish_mention_sentiment` | 94.932 |
 | `dish_place_signal` | 31.036 |
 | `hidden_gem_candidate` | 622 |
-| `place` | 7.230 |
-| `review` | 80.037 |
 
----
-
-## Resumen de menciones
-
-```text
-dish_mentions = 94.932
-reviews_with_mentions = 42.461
-places_with_mentions = 4.088
-dishes_mentioned = 9.937
-avg_ner_confidence = 0.97571
-```
-
-Esto confirma que el módulo NER quedó integrado y conectado con reviews, places y catálogo de platos.
-
----
-
-## Distribución de sentimiento
-
-La tabla `dish_mention_sentiment` contiene:
-
-| Sentimiento | Tier | Registros |
-|---|---|---:|
-| positive | high | 22.322 |
-| positive | medium | 17.729 |
-| positive | low | 3.091 |
-| neutral | medium | 4.376 |
-| neutral | low | 40.990 |
-| negative | high | 2.689 |
-| negative | medium | 3.390 |
-| negative | low | 345 |
-
-La distribución confirma la decisión tomada durante el módulo 09: el sentimiento final es conservador y muchos neutrales de baja fiabilidad se mantienen como señales débiles.
-
----
-
-## Resumen de señales agregadas
-
-```text
-total_signals = 31.036
-places_with_signals = 4.088
-dishes_with_signals = 9.937
-rankable_signals = 3.841
-avg_confidence_weighted_sentiment = 0.36397
-avg_bayesian_sentiment_score = 0.09125
-```
-
-Esto refleja el paso de menciones individuales a pares `place + dish`.
-
----
-
-## Resumen del ranking cargado
+Estado:
 
 ```text
 ranking_scope = yelp_prototype
-ranking_version = hidden_gems_ranking_v1
-total_candidates = 622
-selected_candidates = 622
-min_score = 60.00283
-avg_score = 66.86828
-max_score = 82.92816
-production_ready_rows = 0
+is_production_ready = false
+ready_for_querying_ai_ranking = true
 ```
 
-Distribución por tier:
-
-| Tier | Registros | Score mínimo | Score medio | Score máximo |
-|---|---:|---:|---:|---:|
-| `top_hidden_gem` | 2 | 82.04289 | 82.48553 | 82.92816 |
-| `strong_hidden_gem` | 50 | 75.16746 | 77.38033 | 81.98466 |
-| `promising_hidden_gem` | 182 | 68.01238 | 70.95088 | 74.97431 |
-| `exploratory_hidden_gem` | 388 | 60.00283 | 63.51809 | 67.99076 |
-
----
-
-## Top candidatos actuales
-
-Los primeros candidatos cargados son:
-
-```text
-1. Sushi Ushi → sushi → 82.92816
-2. Taqueria Cuernavaca → tacos → 82.04289
-3. Blues City Deli → sandwich → 81.98466
-4. Surrey's Café & Juice Bar → shrimp → 81.89650
-5. Three Muses → steak → 81.74085
-```
-
-Estos resultados son coherentes con el ranking generado en los notebooks y ahora están disponibles desde PostgreSQL.
-
----
-
-## Integridad validada
-
-El check final confirma:
+Integridad:
 
 ```text
 orphan_dish_mentions_review = 0
@@ -140,267 +75,347 @@ orphan_signals_dish = 0
 orphan_candidates_signal = 0
 ```
 
-Esto significa que:
+---
 
-- no hay menciones sin review;
-- no hay menciones sin place;
-- no hay menciones sin dish;
-- no hay sentimientos sin mención;
-- no hay señales sin place/dish;
-- no hay candidatos sin señal asociada.
+## 3. Estado validado: Sevilla pilot
+
+Fases cerradas:
+
+```text
+1. Recolección Google Places Sevilla.
+2. Recolección Google Places Reviews Sevilla.
+3. Exportación de reviews para IA.
+4. Exploración del corpus local.
+5. Detección de candidatos de platos.
+6. Normalización y catálogo local.
+7. Sentimiento por mención.
+8. Agregación place + dish.
+9. Ranking sevilla_pilot.
+10. Carga en PostgreSQL.
+11. Check de integridad.
+12. Script demo de consultas.
+13. Documentación docs/12_sevilla_ai_pilot.
+```
+
+Volumen de fuente:
+
+```text
+800+ locales Google Places
+4.000+ reviews Google Places
+```
+
+Resultados IA cargados:
+
+| Elemento | Registros |
+|---|---:|
+| `dish` local Sevilla | 190 |
+| `dish_alias` Sevilla | 243 |
+| `dish_mention` Sevilla | 2.979 |
+| `dish_mention_sentiment` Sevilla | 2.979 |
+| `dish_place_signal` Sevilla | 2.212 |
+| `hidden_gem_candidate` Sevilla | 256 |
+| candidatos seleccionados | 150 |
+
+Cobertura:
+
+```text
+selected_places = 122
+selected_dishes = 38
+selected_neighborhoods = 55
+selected_districts = 11
+```
+
+Ranking:
+
+```text
+artifact_ranking_scope = sevilla_pilot
+db_ranking_scope = other
+ranking_version = sevilla_hidden_gems_ranking_pilot_v1
+is_production_ready = false
+ready_for_sevilla_pilot_queries = true
+```
+
+El uso de `other` en `ranking_scope` es una decisión técnica temporal debida a la constraint actual del DDL. El scope lógico `sevilla_pilot` se conserva en `ranking_config_json`.
 
 ---
 
-## Estado de producción
-
-Actualmente:
+## 4. Distribución del ranking Sevilla pilot
 
 ```text
-ranking_scope = yelp_prototype
-production_ready_candidates = 0
-candidates_with_neighborhood = 0
+total_pairs_scored = 256
+selected_hidden_gem_candidates = 150
+not_selected = 106
 ```
 
-Esto es correcto y esperado.
-
-El ranking cargado no debe interpretarse como ranking final de Sevilla. Es un prototipo validado con Yelp para demostrar que la cadena completa funciona.
-
----
-
-## Qué está ya cerrado
-
-La parte cerrada del proyecto incluye:
+Tiers:
 
 ```text
-IA experimental en notebooks
-↓
-documentación del bloque IA
-↓
-schema IA en PostgreSQL
-↓
-loaders de artefactos IA
-↓
-checks de integridad
-↓
-vistas SQL
-↓
-script de demo de consultas
+top_hidden_gem = 2
+strong_hidden_gem = 7
+promising_hidden_gem = 72
+exploratory_hidden_gem = 69
 ```
 
-En términos prácticos, ya existe una cadena completa:
+Score seleccionado:
 
 ```text
-reviews
-→ menciones de platos
-→ sentimiento por mención
-→ señales por local/plato
-→ ranking
-→ PostgreSQL
-→ vistas consultables
+min = 55.0423
+mean = 63.2804
+median ≈ 62.7168
+max = 80.1471
+```
+
+Ejemplos destacados:
+
+```text
+Pizzería San Pablo → pizza
+restaurante asiático shan → sushi
+Il Ristorantino Dell'Avvocato Calle Cuna → pizza
+Tarannà → atún
+Taberna Los Terceros → solomillo al whisky
+Cafeteria mi abuela, churreria → churros
+I Love Churros → churros
+BAR EL BUCHITO → carrillada
+Bar BOCACHICA → ensaladilla
+Las Golondrinas - Pagés del Corro → bacalao
 ```
 
 ---
 
-# Siguiente fase recomendada
-
-La siguiente fase natural es volver al objetivo real del producto:
+## 5. Qué está ya cerrado
 
 ```text
-Sevilla + Google Places + OSM + barrios
-```
+Verticales de adquisición
+→ Sevilla Geo
+→ OSM / Overpass
+→ Google Places
+→ Google Places Reviews
+→ Yelp Open Dataset
 
-El objetivo será adaptar la cadena ya validada para datos reales de Sevilla.
+IA experimental
+→ Yelp notebooks/modelos/prototipo
+→ Sevilla notebooks 12-17
+
+Integración PostgreSQL
+→ schema IA
+→ loaders
+→ checks
+→ vistas
+→ query demos
+
+Documentación
+→ docs/10_ai_module
+→ docs/11_ai_integration
+→ docs/12_sevilla_ai_pilot
+```
 
 ---
 
-## Fase 1 siguiente: ranking Sevilla operativo inicial
+## 6. Limitaciones actuales
 
-El primer paso realista no debería ser entrenar más IA, sino conectar lo que ya existe con datos operativos.
+### 6.1. Sevilla pilot no es producción
+
+El piloto local es útil y consultable, pero todavía no debe publicarse como ranking final.
+
+Motivos:
+
+- Google devuelve un subconjunto limitado de reviews por local;
+- el corpus local todavía es reducido frente a una versión productiva;
+- el sentimiento es híbrido/reglado;
+- faltan revisiones manuales sistemáticas;
+- hay que evaluar falsos positivos desde una interfaz o dashboard;
+- `is_production_ready = false`.
+
+### 6.2. Restricción temporal de `ranking_scope`
+
+El DDL actual no incluye `sevilla_pilot` como valor nativo de `ranking_scope`, por lo que se ha usado:
+
+```text
+db_ranking_scope = other
+artifact_ranking_scope = sevilla_pilot
+```
+
+Esto es correcto para el piloto, pero puede revisarse en una futura migración.
+
+### 6.3. IA mejorable
+
+La capa IA actual es suficientemente buena para prototipo, pero no definitiva.
+
+Posibles mejoras posteriores:
+
+- ampliar diccionario gastronómico español;
+- mejorar detección de platos compuestos;
+- reducir falsos positivos;
+- entrenar NER específico español;
+- mejorar sentimiento por aspecto/plato;
+- añadir validación humana.
+
+---
+
+## 7. Siguiente fase recomendada
+
+El orden acordado para continuar es:
+
+```text
+1. Actualizar README y documentación general.
+2. Consolidar scripts demo finales.
+3. Definir contrato de datos para dashboard.
+4. Crear dashboard piloto.
+5. Revisar calidad del ranking con uso real.
+6. Decidir si conviene mejorar reglas o crear modelos IA nuevos.
+```
+
+---
+
+## 8. Fase A: documentación general
+
+Ya se está actualizando:
+
+```text
+README.md
+docs/01_context/
+docs/02_architecture/
+docs/03_data_model/
+docs/04_sources/
+docs/05_verticals/
+docs/11_ai_integration/
+docs/12_sevilla_ai_pilot/
+```
 
 Objetivo:
 
 ```text
-place de Sevilla
-+ reviews de Google Places
-+ neighborhood assignment
-→ aplicar lógica IA
-→ generar candidatos Hidden Gems por barrio
-```
-
-Para esto hará falta revisar:
-
-```text
-1. Qué places de Google Places tienen reviews cargadas.
-2. Qué places tienen asignación a barrio.
-3. Qué volumen de texto real existe en español/inglés.
-4. Si el modelo actual puede procesar esos textos directamente.
-5. Si hace falta traducción o adaptación lingüística.
+Que el repositorio refleje que el piloto IA Sevilla ya existe, está cargado y es consultable.
 ```
 
 ---
 
-## Fase 2 siguiente: loaders o jobs IA para datos operativos
+## 9. Fase B: scripts demo finales
 
-Hasta ahora los artefactos vienen de notebooks.
-
-Para Sevilla, necesitaremos jobs reproducibles:
+Scripts a consolidar:
 
 ```text
-scripts/run_ai_dish_detection_for_reviews.py
-scripts/run_ai_mention_sentiment_for_reviews.py
-scripts/run_ai_signal_aggregation_for_places.py
-scripts/run_hidden_gems_ranking.py
+scripts/query_sevilla_hidden_gems_demo.py
+scripts/check_sevilla_ai_pilot_loaded.py
+scripts/load_sevilla_ai_pilot_outputs.py
+scripts/export_reviews_for_ai.py
+scripts/check_ai_review_export.py
 ```
 
-O una estructura productiva dentro de:
+Revisión recomendada:
+
+- `--help` claro;
+- rutas por defecto consistentes;
+- salida en `data/artifacts/`;
+- report JSON cuando aplique;
+- filtros por distrito/barrio/plato/local;
+- nombres de columnas estables para dashboard.
+
+---
+
+## 10. Fase C: contrato de datos para dashboard
+
+Antes del dashboard, conviene cerrar qué datos debe consumir.
+
+Bloques mínimos:
 
 ```text
-src/ai/
+Top global
+Top por distrito
+Top por barrio
+Top por plato
+Detalle de candidato
+Resumen por local
+Resumen por plato
+Menciones justificativas
 ```
 
-Con módulos como:
+Fuente recomendada para la primera versión:
 
 ```text
-src/ai/dish_detection.py
-src/ai/dish_normalization.py
-src/ai/mention_sentiment.py
-src/ai/signal_aggregation.py
-src/ai/ranking.py
+CSV/JSON exportados por query_sevilla_hidden_gems_demo.py
+```
+
+Fuente posterior posible:
+
+```text
+PostgreSQL directo
+FastAPI
 ```
 
 ---
 
-## Fase 3 siguiente: integración con barrios
+## 11. Fase D: dashboard piloto
 
-Para que Hidden Gems cumpla su objetivo real, el ranking debe poder responder:
+Recomendación inicial:
 
 ```text
-¿Qué platos destacan por barrio?
+Streamlit
 ```
 
-Eso implica poblar correctamente:
+Motivo:
+
+- rápido de construir;
+- integrado con Python;
+- suficiente para demo técnica;
+- permite filtros, tablas, cards y gráficos;
+- puede consumir CSV/JSON o PostgreSQL.
+
+Funcionalidades mínimas:
 
 ```text
-hidden_gem_candidate.neighborhood_id
-hidden_gem_candidate.district_id
-```
-
-A partir de:
-
-```text
-place_neighborhood_assignment
-```
-
-Y crear vistas futuras como:
-
-```text
-vw_ai_hidden_gems_by_neighborhood
-vw_ai_hidden_gems_sevilla_top
-vw_ai_hidden_gems_neighborhood_dish_summary
-```
-
----
-
-## Fase 4 siguiente: adaptación lingüística
-
-El modelo IA fue desarrollado principalmente sobre Yelp en inglés.
-
-Para Sevilla, las reviews pueden estar en:
-
-```text
-español
-inglés
-multilingüe
-texto mixto
-```
-
-Opciones futuras:
-
-1. Usar el modelo actual como baseline.
-2. Traducir subconjuntos de entrenamiento.
-3. Crear un dataset español de platos y sentimiento.
-4. Entrenar un modelo ABSA específico.
-5. Ampliar `dish_alias` con términos españoles.
-
-No conviene empezar esta fase hasta conocer el volumen real de reviews disponibles en Google Places.
-
----
-
-## Fase 5 siguiente: API o dashboard
-
-Una vez exista ranking operativo para Sevilla, tendrá sentido exponerlo.
-
-Posibles salidas:
-
-```text
-FastAPI endpoint: /hidden-gems
-FastAPI endpoint: /hidden-gems/by-neighborhood/{neighborhood_id}
-FastAPI endpoint: /places/{place_id}/dishes
-Power BI / dashboard
-Jupyter demo
-```
-
-Pero esta fase debería venir después de tener candidatos reales de Sevilla.
-
----
-
-## Orden recomendado desde aquí
-
-El orden recomendado es:
-
-```text
-1. Revisar estado de reviews Google Places en base de datos.
-2. Revisar asignación de places a barrios.
-3. Crear check de readiness Sevilla IA.
-4. Diseñar primer job IA operativo sobre reviews existentes.
-5. Generar primeras dish_mentions operativas para Google Places.
-6. Agregar señales por place/dish.
-7. Generar ranking Sevilla global.
-8. Generar ranking por barrio.
-9. Crear vistas Sevilla.
-10. Documentar resultados.
+filtro por distrito
+filtro por barrio
+filtro por plato
+top global
+top por zona
+cards de candidatos
+tabla completa
+detalle con explicación del ranking
+resumen por distrito/plato/tier
 ```
 
 ---
 
-## Script recomendado como siguiente paso inmediato
+## 12. Fase E: mejora IA posterior
 
-El siguiente script útil sería:
+No conviene empezar entrenando nuevos modelos antes de ver el ranking en dashboard.
 
-```text
-scripts/check_sevilla_ai_readiness.py
-```
-
-Este script debería comprobar:
+El dashboard ayudará a detectar:
 
 ```text
-places de Google Places con reviews
-reviews elegibles para IA
-idiomas disponibles
-places con coordenadas
-places con neighborhood assignment
-barrios con suficientes places/reviews
-volumen textual por barrio
+falsos positivos
+platos demasiado genéricos
+locales con señal débil
+barrios con poca cobertura
+tiers mal calibrados
+problemas de sentimiento
+necesidad real de modelo entrenado
 ```
 
-Con eso sabremos si podemos aplicar el módulo IA directamente a Sevilla o si antes necesitamos más adquisición de datos.
+Después se podrá decidir entre:
+
+```text
+mejorar reglas
+ampliar lexicón español
+crear dataset anotado
+entrenar NER español
+usar modelo multilingüe
+mejorar sentimiento ABSA
+```
 
 ---
 
-## Conclusión
+## 13. Conclusión
 
-La integración IA en PostgreSQL queda completada.
+La integración IA ya no es solo un prototipo con Yelp: ahora incluye un piloto real de Sevilla construido sobre Google Places Reviews, cargado en PostgreSQL y consultable.
 
-El proyecto está listo para pasar de:
-
-```text
-prototipo IA validado con Yelp
-```
-
-a:
+El siguiente salto no debe ser añadir complejidad IA directamente, sino convertir el resultado actual en algo demostrable y revisable:
 
 ```text
-aplicación progresiva sobre datos reales de Sevilla
+consultas finales
+→ contrato de datos
+→ dashboard piloto
+→ revisión de calidad
+→ mejoras IA dirigidas por evidencia
 ```
-
-La prioridad ahora debería ser medir la preparación real del dataset Sevilla/Google Places antes de ejecutar modelos o rankings productivos.

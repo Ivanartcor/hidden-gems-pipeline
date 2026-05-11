@@ -4,7 +4,7 @@
 
 Este documento describe el diseño de base de datos utilizado para integrar el módulo IA de Hidden Gems en PostgreSQL/PostGIS.
 
-La implementación se encuentra en:
+La implementación principal está en:
 
 ```text
 db/ddl/07_ai_module.sql
@@ -16,7 +16,7 @@ Y se apoya en el schema existente:
 hidden_gems
 ```
 
-La decisión fue mantener un único schema para todo el proyecto, evitando crear un schema separado como `hidden_gems_ai`. Esto facilita las relaciones directas con entidades ya existentes como `place`, `review`, `source_run`, `raw_asset`, `district` y `neighborhood`.
+La decisión fue mantener un único schema para todo el proyecto, evitando crear un schema separado como `hidden_gems_ai`. Esto facilita las relaciones directas con entidades existentes como `place`, `review`, `source_run`, `raw_asset`, `district` y `neighborhood`.
 
 ---
 
@@ -49,13 +49,12 @@ Esto permite:
 - recalcular resultados IA sin modificar entidades canónicas;
 - versionar modelos y ejecuciones;
 - conservar histórico de rankings;
-- auditar cada salida.
+- auditar cada salida;
+- cargar prototipos y pilotos sin confundirlos con producción.
 
 ---
 
-## Entidades nuevas
-
-El script `07_ai_module.sql` crea estas tablas principales:
+## Entidades principales
 
 ```text
 ai_model_version
@@ -68,7 +67,7 @@ dish_place_signal
 hidden_gem_candidate
 ```
 
-Todas las tablas usan `UUID` como clave primaria, siguiendo el estilo general de la base.
+Todas las tablas usan `UUID` como clave primaria.
 
 ---
 
@@ -76,11 +75,18 @@ Todas las tablas usan `UUID` como clave primaria, siguiendo el estilo general de
 
 ## Responsabilidad
 
-Registra modelos, métodos o lógicas IA versionadas.
+Registra modelos, reglas o métodos IA versionados.
 
-No todos los registros representan modelos entrenados. También pueden representar reglas, sistemas híbridos, agregaciones o fórmulas de ranking.
+Puede representar:
 
-Ejemplos registrados:
+- modelos transformer;
+- reglas de normalización;
+- métodos híbridos de sentimiento;
+- agregadores de señales;
+- fórmulas de ranking;
+- procesos manuales versionados.
+
+Ejemplos:
 
 ```text
 dish_ner_transformer_v1
@@ -88,34 +94,9 @@ dish_normalization_rule_based_v2
 mention_sentiment_hybrid_v1_1
 signal_aggregation_v1
 hidden_gems_ranking_v1
+sevilla_dish_detection_hybrid_v1
+sevilla_hidden_gems_ranking_pilot_v1
 ```
-
-## Uso
-
-Esta tabla permite saber qué versión generó cada resultado.
-
-Por ejemplo:
-
-```text
-dish_mention → model_version_id = dish_ner_transformer_v1
-dish_mention_sentiment → model_version_id = mention_sentiment_hybrid_v1_1
-hidden_gem_candidate → ranking_version = hidden_gems_ranking_v1
-```
-
-## Campos conceptuales principales
-
-| Campo | Propósito |
-|---|---|
-| `model_code` | Identificador estable de la versión. |
-| `model_name` | Nombre legible. |
-| `model_type` | Tipo: transformer, rule_based, hybrid, aggregation, ranking. |
-| `task_name` | Tarea: dish_detection, dish_normalization, mention_sentiment, etc. |
-| `version_label` | Versión funcional. |
-| `framework_name` | Framework usado cuando aplica. |
-| `base_model_name` | Modelo base cuando aplica. |
-| `metrics_json` | Métricas asociadas. |
-| `config_json` | Configuración usada. |
-| `is_active` | Indica si la versión está activa. |
 
 ---
 
@@ -123,38 +104,25 @@ hidden_gem_candidate → ranking_version = hidden_gems_ranking_v1
 
 ## Responsabilidad
 
-Registra ejecuciones de procesos IA.
+Registra ejecuciones concretas de procesos IA.
 
-Es diferente a `source_run`:
+No sustituye a `source_run`:
 
 ```text
-source_run = ejecución de adquisición desde una fuente externa
-ai_pipeline_run = ejecución de procesamiento IA derivado
+source_run = adquisición desde una fuente externa
+ai_pipeline_run = procesamiento IA derivado
 ```
 
-## Ejemplos
+Ejemplos:
 
 ```text
-ai_run_yelp_dish_normalization_v2_catalog_import
 ai_run_yelp_mention_sentiment_hybrid_v1
-ai_run_yelp_signal_aggregation_v1
 ai_run_yelp_hidden_gems_ranking_v1
+ai_run_sevilla_dish_detection_v1
+ai_run_sevilla_hidden_gems_ranking_pilot_v1
 ```
 
-## Campos conceptuales principales
-
-| Campo | Propósito |
-|---|---|
-| `run_code` | Identificador estable de la ejecución. |
-| `run_type` | Tipo de ejecución IA. |
-| `status` | Estado de la ejecución. |
-| `started_at` / `finished_at` | Tiempos de ejecución. |
-| `parent_ai_run_id` | Permite encadenar ejecuciones. |
-| `source_run_id` | Relación opcional con adquisición externa. |
-| `input_artifacts_json` | Artefactos de entrada. |
-| `output_artifacts_json` | Artefactos generados. |
-| `config_json` | Configuración de ejecución. |
-| `metrics_json` | Resumen de métricas. |
+Los campos `input_artifacts_json`, `output_artifacts_json`, `config_json` y `metrics_json` permiten reconstruir qué se ejecutó y con qué resultados.
 
 ---
 
@@ -166,7 +134,7 @@ Catálogo canónico de platos.
 
 Representa conceptos de plato, no menciones concretas.
 
-Ejemplos:
+Ejemplos Yelp:
 
 ```text
 pizza
@@ -174,21 +142,19 @@ burger
 sushi
 tacos
 fried chicken
-pad thai
-brisket ramen
 ```
 
-## Origen actual
-
-Se carga desde:
+Ejemplos Sevilla:
 
 ```text
-dish_catalog_seed_v2.csv
+croqueta
+ensaladilla
+carrillada
+solomillo al whisky
+tarta de queso
+churros
+bacalao
 ```
-
-## Decisión importante
-
-El identificador del notebook, por ejemplo `dish_seed_v2_000004`, no se usa como PK real.
 
 La base usa:
 
@@ -196,7 +162,7 @@ La base usa:
 dish_id = UUID
 ```
 
-Y el catálogo se resuelve principalmente por nombre normalizado/código interno.
+Los IDs externos de notebooks o semillas se conservan como metadata/código de origen cuando procede, pero no sustituyen a la PK real.
 
 ---
 
@@ -209,25 +175,14 @@ Guarda variantes textuales asociadas a un plato canónico.
 Ejemplo:
 
 ```text
-dish = burger
+dish = croqueta
 aliases:
-- burger
-- burgers
-- cheeseburger
-- burger with bacon
+- croqueta
+- croquetas
+- croquetas caseras
 ```
 
-## Origen actual
-
-Se carga desde:
-
-```text
-dish_aliases_seed_v2.csv
-```
-
-## Utilidad futura
-
-Esta tabla será fundamental para normalizar menciones nuevas cuando se apliquen los modelos a datos de Sevilla o Google Places.
+Es una tabla clave para normalizar menciones nuevas y para adaptar el sistema a español/localismos.
 
 ---
 
@@ -237,18 +192,7 @@ Esta tabla será fundamental para normalizar menciones nuevas cuando se apliquen
 
 Representa cada aparición concreta de un plato dentro de una review.
 
-Ejemplo:
-
-```text
-review_id = X
-dish_id = sushi
-mention_text = "sushi"
-start_char = 35
-end_char = 40
-ner_confidence_mean = 0.99
-```
-
-## Relaciones
+Relaciones:
 
 | Relación | Significado |
 |---|---|
@@ -257,16 +201,14 @@ ner_confidence_mean = 0.99
 | `dish_id → dish` | Plato normalizado. |
 | `dish_alias_id → dish_alias` | Alias usado cuando aplica. |
 | `ai_pipeline_run_id → ai_pipeline_run` | Ejecución que generó la mención. |
-| `model_version_id → ai_model_version` | Modelo NER utilizado. |
+| `model_version_id → ai_model_version` | Modelo/regla utilizada. |
 
-## Decisión importante
+Aunque `place_id` podría obtenerse mediante `review`, se almacena también para acelerar agregaciones y checks.
 
-Aunque `place_id` podría obtenerse mediante `review`, se almacena también en `dish_mention` por eficiencia en agregaciones.
-
-La regla de integridad lógica es:
+Regla lógica:
 
 ```text
-dish_mention.place_id debe coincidir con el place_id de la review asociada
+dish_mention.place_id debe coincidir con review.place_id
 ```
 
 ---
@@ -277,40 +219,24 @@ dish_mention.place_id debe coincidir con el place_id de la review asociada
 
 Guarda el sentimiento calculado para una mención concreta.
 
-Se separa de `dish_mention` para poder recalcular sentimiento en el futuro sin duplicar la mención.
+Se separa de `dish_mention` para poder recalcular sentimiento sin duplicar la mención.
 
-Ejemplo:
-
-```text
-dish_mention_id = X
-sentiment_label = positive
-sentiment_score = 0.72
-sentiment_confidence = 0.81
-sentiment_reliability_tier = high
-sentiment_method = hybrid_context_lexicon_v1_1
-```
-
-## Origen actual
-
-Se carga desde:
+Valores principales:
 
 ```text
-dish_mentions_with_sentiment_hybrid_v1.jsonl
+positive
+neutral
+negative
 ```
 
-## Valores principales
+Además puede almacenar:
 
-```text
-sentiment_label:
-- positive
-- neutral
-- negative
-
-sentiment_reliability_tier:
-- high
-- medium
-- low
-```
+- score;
+- confianza;
+- método;
+- contexto usado;
+- flags de ambigüedad;
+- términos positivos/negativos detectados.
 
 ---
 
@@ -320,38 +246,25 @@ sentiment_reliability_tier:
 
 Guarda señales agregadas por local y plato.
 
-Equivale a la versión persistida de:
+Conceptualmente:
 
 ```text
-dish_business_ranking_candidates_v1.csv
+place + dish → señales agregadas
 ```
 
-Pero usando `place_id`, no `business_id`.
+Incluye:
 
-## Ejemplo conceptual
-
-```text
-place = Sushi Ushi
-dish = sushi
-mention_count = 53
-review_count = 28
-positive_ratio = 0.7169
-negative_ratio = 0.0
-bayesian_sentiment_score = 0.6945
-evidence_tier = strong
-```
-
-## Uso
+- `mention_count`;
+- `review_count`;
+- ratios positivos/neutros/negativos;
+- sentimiento ponderado;
+- confianza media;
+- evidencias locales;
+- tiers de calidad;
+- flags de ruido;
+- elegibilidad para ranking.
 
 Esta tabla es el puente entre menciones individuales y ranking final.
-
-Permite responder:
-
-```text
-¿Qué platos destacan en este local?
-¿Qué locales tienen mejor señal para este plato?
-¿Qué candidatos tienen evidencia suficiente para ranking?
-```
 
 ---
 
@@ -359,42 +272,42 @@ Permite responder:
 
 ## Responsabilidad
 
-Guarda los candidatos finales del ranking Hidden Gems.
+Guarda candidatos finales del ranking Hidden Gems.
 
-Equivale a la versión persistida de:
+Incluye:
+
+| Campo | Significado |
+|---|---|
+| `hidden_gem_score` | Score final. |
+| `hidden_gem_tier` | Tier del candidato. |
+| `hidden_gem_rank` | Ranking global. |
+| `hidden_gem_selected_rank` | Ranking entre seleccionados. |
+| `ranking_explanation` | Explicación textual del candidato. |
+| `ranking_scope` | Alcance del ranking en DB. |
+| `is_production_ready` | Indica si se considera producción. |
+| `neighborhood_id` | Barrio asociado cuando existe. |
+| `district_id` | Distrito asociado cuando existe. |
+
+Estados actuales:
 
 ```text
-hidden_gems_selected_candidates_v1.csv
-```
-
-## Estado actual
-
-El ranking actual se carga como:
-
-```text
+Yelp prototype:
 ranking_scope = yelp_prototype
 is_production_ready = false
 ```
 
-Esto respeta la decisión de que Yelp valida el sistema, pero no representa todavía el ranking productivo de Sevilla.
+```text
+Sevilla pilot:
+db_ranking_scope = other
+artifact_ranking_scope = sevilla_pilot
+is_production_ready = false
+```
 
-## Campos clave
-
-| Campo | Significado |
-|---|---|
-| `hidden_gem_score` | Score final de ranking. |
-| `hidden_gem_tier` | top, strong, promising o exploratory. |
-| `hidden_gem_rank` | Ranking global. |
-| `hidden_gem_selected_rank` | Ranking entre seleccionados. |
-| `ranking_explanation` | Explicación generada del candidato. |
-| `ranking_scope` | Alcance del ranking. |
-| `is_production_ready` | Indica si el candidato es producción real. |
+El uso de `other` para Sevilla se debe a la constraint actual del DDL. El valor lógico `sevilla_pilot` se conserva en `ranking_config_json`.
 
 ---
 
 ## Relaciones principales
-
-La cadena completa queda así:
 
 ```text
 source_system
@@ -418,7 +331,7 @@ dish_place_signal
 hidden_gem_candidate
 ```
 
-Y en paralelo:
+En paralelo:
 
 ```text
 dish
@@ -432,7 +345,7 @@ dish_mention
 
 ## Integridad validada
 
-El check final confirma que no existen huérfanos:
+Yelp prototype:
 
 ```text
 orphan_dish_mentions_review = 0
@@ -444,13 +357,65 @@ orphan_signals_dish = 0
 orphan_candidates_signal = 0
 ```
 
+Sevilla pilot:
+
+```text
+no_missing_review_mapping = true
+no_missing_place_mapping = true
+no_missing_dish_mapping = true
+no_invalid_sentiment = true
+ready_for_sevilla_pilot_queries = true
+errors = []
+warnings = []
+```
+
+---
+
+## Conteos actuales relevantes
+
+### Yelp prototype
+
+```text
+dish = 9.937
+dish_alias = 10.235
+dish_mention = 94.932
+dish_mention_sentiment = 94.932
+dish_place_signal = 31.036
+hidden_gem_candidate = 622
+```
+
+### Sevilla pilot
+
+```text
+dish local = 190
+dish_alias local = 243
+dish_mention = 2.979
+dish_mention_sentiment = 2.979
+dish_place_signal = 2.212
+hidden_gem_candidate = 256
+selected_hidden_gem_candidates = 150
+selected_neighborhoods = 55
+selected_districts = 11
+```
+
 ---
 
 ## Ampliación de `validation_issue`
 
-El diseño también contempla que las entidades IA puedan aparecer en incidencias de validación.
+La capa IA puede aparecer en incidencias de validación:
 
-Esto permite registrar problemas como:
+```text
+ai_model_version
+ai_pipeline_run
+dish
+dish_alias
+dish_mention
+dish_mention_sentiment
+dish_place_signal
+hidden_gem_candidate
+```
+
+Ejemplos:
 
 ```text
 dish_alias ambiguo
@@ -465,12 +430,13 @@ ranking inconsistente
 ## Decisiones de diseño cerradas
 
 1. Schema único `hidden_gems`.
-2. UUID como PK en todas las tablas IA.
+2. UUID como PK en tablas IA.
 3. `place_id` como eje del sistema.
-4. `business_id` de Yelp queda solo como identificador fuente.
+4. IDs externos quedan en `place_source_ref` o metadata.
 5. `dish` se separa de `dish_mention`.
 6. `dish_mention_sentiment` se separa de `dish_mention`.
 7. `dish_place_signal` se separa de `hidden_gem_candidate`.
 8. Todos los resultados se versionan mediante modelos y runs.
-9. El ranking Yelp actual se marca como prototipo.
-10. La base queda preparada para un futuro ranking por barrio de Sevilla.
+9. Yelp queda como prototipo.
+10. Sevilla queda como piloto local, no producción.
+11. La capa queda preparada para añadir `sevilla_pilot` como scope nativo en una futura migración.

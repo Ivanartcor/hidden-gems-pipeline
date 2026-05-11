@@ -2,7 +2,7 @@
 
 ## 1. Introducción
 
-Este proyecto consiste en el diseño e implementación de un **pipeline inteligente de adquisición, procesamiento, validación e integración de datos gastronómicos**, concebido como un módulo técnico reutilizable dentro del ecosistema de **Hidden Gems**.
+Este proyecto consiste en el diseño e implementación de un **pipeline inteligente de adquisición, procesamiento, validación, enriquecimiento e integración IA de datos gastronómicos**, concebido como un módulo técnico reutilizable dentro del ecosistema de **Hidden Gems**.
 
 Su propósito principal no es construir directamente una aplicación final de usuario, sino crear una base sólida de ingeniería de datos e inteligencia analítica que permita recopilar, estructurar, validar, enriquecer y explotar información procedente de múltiples fuentes.
 
@@ -14,9 +14,11 @@ El repositorio ha evolucionado desde una primera infraestructura de adquisición
 - persistencia canónica en PostgreSQL/PostGIS;
 - carga de reseñas operativas;
 - generación de corpus NLP;
-- prototipado de modelos IA sobre Yelp;
+- prototipado IA sobre Yelp;
+- piloto IA local sobre reviews reales de Google Places Sevilla;
 - integración de resultados IA en PostgreSQL;
-- vistas y scripts de consulta para explorar candidatos Hidden Gems.
+- vistas y scripts de consulta para explorar candidatos Hidden Gems;
+- documentación técnica específica del piloto Sevilla.
 
 ---
 
@@ -36,11 +38,12 @@ Dentro de ese marco, este proyecto desarrolla la base técnica necesaria para qu
 - enriquecimiento geográfico;
 - carga de reseñas operativas;
 - preparación de corpus NLP;
-- detección prototipo de platos;
+- detección de platos;
 - normalización de platos;
 - análisis de sentimiento por mención;
 - señales local-plato;
-- ranking prototipo de candidatos Hidden Gems.
+- ranking prototipo y ranking piloto local;
+- consulta de resultados desde PostgreSQL.
 
 Por tanto, este trabajo no debe entenderse como algo separado de Hidden Gems, sino como un **módulo estratégico del PI**, desarrollado con suficiente independencia como para poder ser implementado, probado, documentado y evolucionado de forma autónoma.
 
@@ -60,10 +63,14 @@ fuentes externas
 → normalización
 → enriquecimiento geográfico
 → persistencia estructurada
+→ reviews
 → corpus NLP / capa IA
+→ detección de platos
+→ normalización de platos
+→ sentimiento por mención
 → señales agregadas
-→ ranking prototipo
-→ vistas de consulta
+→ ranking Hidden Gems
+→ vistas SQL / consulta demo
 ```
 
 Este enfoque permite trabajar con un modelo de datos robusto, separar responsabilidades y evitar dependencias frágiles entre fuentes, lógica de negocio, IA y explotación analítica.
@@ -79,6 +86,7 @@ dato geográfico
 dato textual
 dato IA derivado
 vistas de consulta
+artefactos de demo
 ```
 
 ---
@@ -108,9 +116,11 @@ Este proyecto aporta una base técnica imprescindible para el desarrollo posteri
 - verticales operativas para Sevilla Geo, OSM / Overpass, Google Places y Google Reviews;
 - una vertical Yelp capaz de construir corpus NLP gastronómico;
 - un módulo IA experimental para detectar y normalizar platos;
+- un flujo IA local sobre reviews reales de Sevilla;
 - una capa IA persistida en PostgreSQL;
 - loaders y checks reproducibles para cargar artefactos IA;
-- vistas SQL y scripts demo para consultar candidatos Hidden Gems.
+- vistas SQL y scripts demo para consultar candidatos Hidden Gems;
+- documentación técnica del piloto Sevilla.
 
 El resultado esperado no es solo “tener datos”, sino disponer de un sistema que permita **ingestarlos, entenderlos, validarlos, enriquecerlos y reutilizarlos con rigor técnico**.
 
@@ -123,8 +133,9 @@ Este proyecto se sitúa entre varias disciplinas complementarias:
 - **ingeniería de datos**, por su énfasis en adquisición, organización, trazabilidad y persistencia;
 - **procesamiento de datos geográficos**, por la asignación y explotación territorial;
 - **procesamiento textual**, por el tratamiento de reseñas y corpus NLP;
-- **inteligencia artificial aplicada**, por la detección de platos, sentimiento por mención y ranking prototipo;
-- **automatización inteligente**, por la lógica de integración, validación y enriquecimiento del pipeline.
+- **inteligencia artificial aplicada**, por la detección de platos, sentimiento por mención y ranking explicable;
+- **automatización inteligente**, por la lógica de integración, validación y enriquecimiento del pipeline;
+- **explotación analítica**, por las vistas SQL, scripts de consulta y futura capa de dashboard.
 
 El sistema, por tanto, no es simplemente un ETL tradicional ni una aplicación analítica cerrada. Es una infraestructura técnica intermedia que hace posible el resto del proyecto Hidden Gems.
 
@@ -145,9 +156,16 @@ Se dispone de:
 - módulo IA experimental documentado;
 - integración IA en PostgreSQL validada;
 - vistas SQL de consulta IA;
-- script demo para consultar ranking prototipo.
+- script demo para consultar ranking prototipo;
+- piloto IA Sevilla con reviews reales de Google Places;
+- ranking `sevilla_pilot` generado, cargado y validado;
+- script demo específico para consultar Hidden Gems Sevilla.
 
-La capa IA actual funciona como **prototipo validado sobre Yelp Open Dataset**. Permite demostrar el flujo completo:
+La capa IA actual tiene dos usos diferenciados:
+
+### Prototipo Yelp
+
+Permite demostrar el flujo completo:
 
 ```text
 reviews Yelp
@@ -160,21 +178,76 @@ reviews Yelp
 → vistas de consulta
 ```
 
+Este ranking se marca como:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
+
+### Piloto Sevilla
+
+Permite validar el flujo sobre datos locales reales:
+
+```text
+Google Places Reviews Sevilla
+→ export reviews para IA
+→ detección de platos en español
+→ normalización local de platos
+→ sentimiento por mención
+→ señales local-plato
+→ ranking sevilla_pilot
+→ PostgreSQL
+→ consulta demo
+```
+
+Este piloto se ha cargado con:
+
+```text
+dish_catalog: 190
+dish_alias: 243
+dish_mention: 2.979
+dish_mention_sentiment: 2.979
+dish_place_signal: 2.212
+hidden_gem_candidate: 256
+hidden_gem_selected: 150
+```
+
+Y se ha validado sin errores ni warnings, quedando listo para consultas demo.
+
 ---
 
 ## 8. Límite importante del estado actual
 
-Aunque la integración IA ya está validada, el ranking actual no debe interpretarse como ranking productivo final de Sevilla.
+Aunque la integración IA ya está validada, los rankings actuales no deben interpretarse como producto final definitivo.
 
-El ranking cargado en base de datos corresponde a:
+El ranking Yelp es un prototipo externo:
 
 ```text
 ranking_scope = yelp_prototype
 ```
 
-Esto significa que sirve para validar arquitectura, modelo de datos, loaders, checks, consultas y lógica analítica, pero todavía no representa el resultado final esperado para barrios de Sevilla.
+El ranking Sevilla es un piloto local:
 
-La evolución natural del proyecto será aplicar el flujo IA sobre reseñas reales locales, especialmente Google Places Reviews, y adaptar la extracción de platos al contexto español/gastronómico de Sevilla.
+```text
+artifact_ranking_scope = sevilla_pilot
+```
+
+Por la restricción actual del DDL, en base se conserva como:
+
+```text
+db_ranking_scope = other
+```
+
+pero mantiene `sevilla_pilot` en la configuración JSON del ranking.
+
+Ningún ranking está marcado todavía como producción:
+
+```text
+is_production_ready = false
+```
+
+Esto significa que los resultados son válidos para demo técnica, análisis interno y validación del flujo, pero aún requieren revisión de calidad, dashboard, criterios de publicación y posible mejora IA antes de considerarse producción.
 
 ---
 
@@ -187,9 +260,10 @@ Eso implica:
 - disponer de un esquema de base de datos bien definido;
 - tener operativas las principales verticales de adquisición;
 - establecer reglas de integración, validación y trazabilidad;
-- disponer de una primera capa IA integrada en PostgreSQL;
+- disponer de una capa IA integrada en PostgreSQL;
+- haber demostrado el flujo sobre corpus externo y sobre datos reales de Sevilla;
 - organizar la documentación técnica del proyecto;
-- dejar preparado el terreno para adaptar la IA al caso real de Sevilla;
-- abrir el camino a ranking por barrio, API, dashboard y producto final.
+- dejar preparado el terreno para dashboard, API y producto final;
+- abrir el camino a mejoras IA específicas en español/multilingüe.
 
-En resumen, esta fase convierte una idea conceptual en una **plataforma técnica inicial, estructurada y extensible**, desde la que Hidden Gems puede evolucionar con orden y consistencia.
+En resumen, esta fase convierte una idea conceptual en una **plataforma técnica inicial, estructurada, validada y extensible**, desde la que Hidden Gems puede evolucionar con orden y consistencia.

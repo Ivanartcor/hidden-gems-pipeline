@@ -2,21 +2,39 @@
 
 ## 1. Introducción
 
-Este documento describe el bloque de entidades encargado del **control de calidad, validación e incidencias** dentro del modelo de datos de Hidden Gems.
+Este documento describe el bloque encargado del **control de calidad, validación e incidencias** dentro del modelo de datos de Hidden Gems.
 
-Un pipeline de datos no solo debe almacenar información. También debe ser capaz de registrar los problemas encontrados durante la adquisición, integración, validación, enriquecimiento, procesamiento IA y explotación analítica.
+Un pipeline de datos no solo debe almacenar información. También debe registrar y comprobar los problemas encontrados durante:
+
+- adquisición;
+- integración;
+- validación;
+- enriquecimiento geográfico;
+- procesamiento IA;
+- carga de artefactos;
+- ranking;
+- consulta analítica.
 
 La entidad principal de calidad estructurada es:
 
 - `validation_issue`.
 
-Además, tras la integración IA, el proyecto cuenta con scripts de comprobación específicos que generan reportes de calidad sobre el catálogo de platos, el mapeo de artefactos IA, la carga de menciones, la carga de señales y la consulta del ranking.
+Además, el proyecto cuenta con scripts de check que generan reportes JSON para validar:
+
+- verticales de fuente;
+- catálogo de platos;
+- mapeo de artefactos IA;
+- carga de menciones;
+- carga de sentimiento;
+- carga de señales;
+- carga de ranking;
+- vistas y consultas demo.
 
 ---
 
 ## 2. Visión general del bloque de calidad
 
-El bloque de calidad se conecta principalmente con las entidades de gobierno y trazabilidad.
+Bloque básico:
 
 ```text
 source_run
@@ -26,172 +44,117 @@ raw_asset
 └── validation_issue
 ```
 
-Además, `validation_issue` puede apuntar conceptualmente a cualquier entidad del sistema mediante:
+Relación polimórfica:
 
 ```text
 entity_type + entity_id
 ```
 
-Esto permite registrar incidencias sobre locales, reseñas, referencias fuente, categorías, geometrías, assets raw, entidades IA o candidatos de ranking.
+Esto permite registrar incidencias sobre:
 
-Con la capa IA integrada, el control de calidad también cubre:
-
-```text
-ai_model_version
-ai_pipeline_run
-dish
-dish_alias
-dish_mention
-dish_mention_sentiment
-dish_place_signal
-hidden_gem_candidate
-```
+- fuentes;
+- runs;
+- raw assets;
+- locales;
+- referencias fuente;
+- reviews;
+- categorías;
+- geografía;
+- entidades IA;
+- señales;
+- candidatos de ranking.
 
 ---
 
-## 3. Decisiones principales del bloque de calidad
+## 3. Decisiones principales
 
 ### 3.1. Registrar incidencias estructuradas
 
-Las incidencias relevantes no deben quedar únicamente en logs de texto.
+Las incidencias relevantes no deben quedar únicamente en logs.
 
-Los logs son útiles para depuración, pero no son suficientes para explotación posterior, reporting o análisis de calidad.
+`validation_issue` permite explotación posterior, reporting y mejora continua.
 
-Por eso el modelo incorpora `validation_issue` como entidad estructurada.
+### 3.2. Vincular incidencias a ejecuciones
 
----
+Toda incidencia procedente de adquisición debe poder relacionarse con un `source_run`.
 
-### 3.2. Vincular cada incidencia a una ejecución
-
-Toda incidencia debe estar asociada a un `source_run` cuando procede de una vertical de adquisición o carga de fuente.
-
-En procesos IA, las incidencias pueden estar relacionadas conceptualmente con un `ai_pipeline_run`, aunque la entidad `validation_issue` mantiene como eje formal `source_run`. Cuando sea necesario, la relación con procesos IA puede documentarse mediante:
+En procesos IA, la relación se conserva mediante:
 
 - `entity_type`;
 - `entity_id`;
 - `issue_code`;
-- `message`;
-- artefactos JSON de checks;
-- métricas en `ai_pipeline_run.metrics_json`.
+- reportes JSON;
+- `ai_pipeline_run.metrics_json`.
 
----
+### 3.3. Permitir relación polimórfica
 
-### 3.3. Permitir relación polimórfica con entidades afectadas
+Una incidencia puede afectar a muchas entidades distintas. Por eso se usa `entity_type + entity_id` en lugar de una FK por cada tabla.
 
-Una incidencia puede afectar a distintos tipos de entidades:
+### 3.4. No cargar resultados IA huérfanos
 
-- `place`;
-- `place_source_ref`;
-- `review`;
-- `category`;
-- `neighborhood`;
-- `raw_asset`;
-- `dish`;
-- `dish_mention`;
-- `dish_place_signal`;
-- `hidden_gem_candidate`.
+Regla clave:
 
-Crear una FK directa para cada posible entidad haría el modelo rígido y complejo.
+- no cargar menciones sin `review`, `place` o `dish`;
+- no cargar sentimientos sin `dish_mention`;
+- no cargar señales sin `place` y `dish`;
+- no cargar ranking sin `dish_place_signal`.
 
-Por ello se utiliza una relación polimórfica mediante:
+### 3.5. Diferenciar prototipo, piloto y producción
+
+Estados actuales:
 
 ```text
-entity_type + entity_id
+yelp_prototype
+→ prototipo IA amplio
+→ is_production_ready = false
 ```
-
-La consistencia de esta relación se controla desde la lógica del pipeline y mediante catálogos permitidos de `entity_type`.
-
----
-
-### 3.4. No cargar resultados IA sin mapeo canónico
-
-Una regla de calidad clave para la integración IA es no insertar resultados huérfanos.
-
-No se deben cargar:
-
-- menciones sin `review`;
-- menciones sin `place`;
-- menciones sin `dish`;
-- sentimientos sin `dish_mention`;
-- señales sin `place` o `dish`;
-- candidatos de ranking sin `dish_place_signal`.
-
-Esta decisión evita que la capa IA se desconecte del modelo canónico.
-
----
-
-### 3.5. Diferenciar prototipo y producción
-
-El ranking actual procedente de Yelp se considera prototipo IA.
-
-Por eso se almacena con:
 
 ```text
-ranking_scope = yelp_prototype
-is_production_ready = false
+sevilla_pilot
+→ piloto local real sobre Google Reviews Sevilla
+→ db_ranking_scope = other
+→ artifact_ranking_scope = sevilla_pilot
+→ is_production_ready = false
 ```
 
-Un ranking productivo de Sevilla deberá cumplir criterios adicionales:
+Una futura versión productiva deberá tener criterios más estrictos:
 
-- `ranking_scope = sevilla_neighborhood`;
-- `is_production_ready = true`;
-- `neighborhood_id` no nulo;
-- `district_id` no nulo;
-- datos procedentes de fuentes operativas reales;
-- validación adicional de idioma, volumen y calidad textual.
+- scope nativo local;
+- revisión manual;
+- cobertura suficiente;
+- `is_production_ready = true` solo para candidatos validados;
+- trazabilidad completa de fuente y artefactos.
 
 ---
 
 ## 4. Entidad `validation_issue`
 
-## 4.1. Propósito
+### Propósito
 
-`validation_issue` representa una **incidencia de calidad, validación, consistencia, matching, geografía, esquema o procesamiento** detectada por el sistema.
+Representa una incidencia de calidad, validación, consistencia, matching, geografía, esquema o procesamiento.
 
-Su objetivo es dejar evidencia estructurada de los problemas encontrados durante el procesamiento.
-
----
-
-## 4.2. Naturaleza de la entidad
-
-| Propiedad | Valor |
-|---|---|
-| Tipo | Calidad / auditoría |
-| Nivel | Incidencia estructurada |
-| Origen | Sistema interno |
-| Persistencia | Sí |
-| Relación polimórfica | Sí |
-
----
-
-## 4.3. Campos principales
+### Campos principales
 
 | Campo | Descripción |
 |---|---|
-| `validation_issue_id` | Identificador interno de la incidencia |
-| `source_run_id` | Ejecución donde se detectó la incidencia |
-| `raw_asset_id` | Asset raw relacionado si aplica |
+| `validation_issue_id` | Identificador interno |
+| `source_run_id` | Ejecución donde se detectó |
+| `raw_asset_id` | Asset relacionado si aplica |
 | `entity_type` | Tipo de entidad afectada |
-| `entity_id` | ID de la entidad afectada |
-| `issue_code` | Código técnico de la incidencia |
-| `issue_type` | Tipo general del problema |
+| `entity_id` | ID de entidad afectada |
+| `issue_code` | Código técnico |
+| `issue_type` | Tipo general |
 | `severity` | Severidad |
 | `message` | Mensaje legible |
-| `field_name` | Campo afectado si aplica |
-| `received_value` | Valor recibido o problemático |
-| `expected_rule` | Regla esperada o incumplida |
-| `status` | Estado de la incidencia |
-| `resolution_notes` | Notas de resolución |
+| `field_name` | Campo afectado |
+| `received_value` | Valor recibido |
+| `expected_rule` | Regla esperada |
+| `status` | Estado |
+| `resolution_notes` | Resolución |
 | `detected_at` | Fecha de detección |
 | `resolved_at` | Fecha de resolución |
-| `created_at` | Fecha de creación |
-| `updated_at` | Fecha de actualización |
 
----
-
-## 4.4. Tipos de incidencia
-
-Valores previstos para `issue_type`:
+### Tipos de incidencia
 
 - `validation`;
 - `quality`;
@@ -199,63 +162,24 @@ Valores previstos para `issue_type`:
 - `geospatial`;
 - `schema`.
 
-Estos tipos permiten agrupar problemas según su naturaleza.
-
-### Ejemplos
-
-| Tipo | Ejemplo |
-|---|---|
-| `validation` | Campo obligatorio ausente |
-| `quality` | Texto demasiado corto o poco útil |
-| `matching` | Duplicado potencial entre fuentes |
-| `geospatial` | Local fuera de barrios oficiales |
-| `schema` | Estructura inesperada en una respuesta raw |
-
----
-
-## 4.5. Severidades
-
-Valores previstos para `severity`:
+### Severidades
 
 - `info`;
 - `warning`;
 - `error`;
 - `critical`.
 
-### Interpretación recomendada
-
-| Severidad | Significado |
-|---|---|
-| `info` | Incidencia informativa que no bloquea el proceso |
-| `warning` | Problema menor que permite continuar |
-| `error` | Problema que afecta al registro o etapa concreta |
-| `critical` | Problema grave que puede invalidar una ejecución o vertical |
-
----
-
-## 4.6. Estados
-
-Valores previstos para `status`:
+### Estados
 
 - `open`;
 - `resolved`;
 - `ignored`.
 
-### Interpretación recomendada
-
-| Estado | Significado |
-|---|---|
-| `open` | La incidencia sigue pendiente |
-| `resolved` | La incidencia fue corregida o gestionada |
-| `ignored` | La incidencia se acepta y no requiere acción |
-
 ---
 
-## 4.7. Entity types permitidos
+## 5. Entity types permitidos
 
-El schema permite registrar incidencias sobre las entidades principales del modelo.
-
-Valores del modelo base:
+Base:
 
 - `source_system`;
 - `source_run`;
@@ -269,7 +193,7 @@ Valores del modelo base:
 - `neighborhood`;
 - `place_neighborhood_assignment`.
 
-Valores añadidos para la capa IA:
+IA:
 
 - `ai_model_version`;
 - `ai_pipeline_run`;
@@ -280,165 +204,80 @@ Valores añadidos para la capa IA:
 - `dish_place_signal`;
 - `hidden_gem_candidate`.
 
-Esto permite que el sistema registre incidencias de forma homogénea sin multiplicar tablas específicas.
-
 ---
 
-## 4.8. Ejemplos de `issue_code`
+## 6. Ejemplos de `issue_code`
 
-Los códigos de incidencia deben ser técnicos, estables y en formato `snake_case`.
-
-Ejemplos generales:
+Generales:
 
 | Código | Descripción |
 |---|---|
-| `missing_coordinates` | El registro no tiene coordenadas |
-| `invalid_geometry` | La geometría no es válida |
-| `empty_name` | El nombre está vacío |
-| `duplicate_candidate` | Posible duplicado detectado |
-| `unmapped_category` | Categoría fuente sin mapeo interno |
-| `missing_required_field` | Falta un campo obligatorio |
+| `missing_coordinates` | Falta coordenada |
+| `invalid_geometry` | Geometría inválida |
+| `empty_name` | Nombre vacío |
+| `duplicate_candidate` | Posible duplicado |
+| `unmapped_category` | Categoría no mapeada |
+| `missing_required_field` | Campo obligatorio ausente |
 | `review_text_empty` | Reseña sin texto útil |
-| `neighborhood_not_found` | No se pudo asignar barrio |
-| `schema_mismatch` | La estructura del raw no coincide con lo esperado |
+| `neighborhood_not_found` | Barrio no resuelto |
+| `schema_mismatch` | Estructura inesperada |
 
-Ejemplos específicos de IA:
+IA:
 
 | Código | Descripción |
 |---|---|
-| `dish_alias_duplicate` | Alias duplicado o ambiguo entre varios platos |
-| `dish_without_alias` | Plato sin alias asociado |
-| `missing_review_mapping` | Una mención no puede mapearse a `review` |
-| `missing_place_mapping` | Un business externo no puede mapearse a `place` |
-| `missing_dish_mapping` | Una mención o señal no puede mapearse a `dish` |
-| `invalid_sentiment_label` | Sentimiento fuera de valores esperados |
-| `invalid_ranking_score` | Score de ranking fuera de rango |
-| `orphan_dish_mention` | Mención sin relación válida |
-| `orphan_hidden_gem_candidate` | Candidato sin señal agregada válida |
-| `production_candidate_without_neighborhood` | Candidato productivo sin barrio asignado |
+| `dish_alias_duplicate` | Alias duplicado o ambiguo |
+| `dish_without_alias` | Plato sin alias |
+| `missing_review_mapping` | Mención sin mapping a `review` |
+| `missing_place_mapping` | Mención/señal sin mapping a `place` |
+| `missing_dish_mapping` | Mención/señal sin mapping a `dish` |
+| `invalid_sentiment_label` | Sentimiento inválido |
+| `invalid_ranking_score` | Score fuera de rango |
+| `orphan_dish_mention` | Mención huérfana |
+| `orphan_hidden_gem_candidate` | Candidato sin señal válida |
+| `production_candidate_without_neighborhood` | Producción sin barrio |
+| `wrong_artifact_scope` | Scope de artefacto incorrecto |
+| `wrong_db_ranking_scope` | Scope DB incorrecto |
 
 ---
 
-## 4.9. Reglas de negocio
+## 7. Calidad por vertical
 
-- Toda incidencia debe estar asociada a un `source_run` cuando procede de una vertical de adquisición.
-- Una incidencia puede estar asociada a un `raw_asset`.
-- Una incidencia debe indicar el tipo de entidad afectada.
-- Una incidencia debe tener código técnico.
-- Una incidencia debe tener tipo, severidad y estado.
-- Una incidencia no debe eliminarse sin criterio.
-- Lo normal es resolverla, ignorarla justificadamente o dejarla abierta.
-- En IA, los checks deben impedir cargas con mapeos incompletos cuando afecten a integridad referencial.
+### 7.1. Sevilla Geo
 
----
-
-## 4.10. Qué no debe guardar `validation_issue`
-
-No debe guardar:
-
-- payloads raw completos;
-- filas completas de negocio;
-- archivos embebidos;
-- reportes agregados completos;
-- lógica completa de validación;
-- outputs completos de modelos.
-
-Debe registrar la incidencia de forma estructurada y suficiente para poder entenderla y tratarla.
-
----
-
-## 4.11. Relaciones
-
-| Relación | Cardinalidad | Descripción |
-|---|---:|---|
-| `validation_issue` → `source_run` | N:1 | Toda incidencia pertenece a una ejecución fuente |
-| `validation_issue` → `raw_asset` | N:1 opcional | Puede relacionarse con un artefacto raw |
-| `validation_issue` → entidad afectada | Polimórfica | Se representa con `entity_type` + `entity_id` |
-
----
-
-## 4.12. Validaciones relevantes
-
-- `source_run_id` es obligatorio.
-- `entity_type` es obligatorio.
-- `issue_code` es obligatorio.
-- `issue_code` debe estar en formato `snake_case`.
-- `issue_type` es obligatorio.
-- `severity` es obligatorio.
-- `message` es obligatorio.
-- `status` es obligatorio.
-- `resolved_at`, si existe, no puede ser anterior a `detected_at`.
-- Si `status = resolved`, debe existir `resolved_at`.
-
----
-
-## 4.13. Índices relevantes
-
-El schema define índices sobre:
-
-- `source_run_id`;
-- `raw_asset_id`;
-- `entity_type`;
-- `(entity_type, entity_id)`;
-- `issue_code`;
-- `issue_type`;
-- `severity`;
-- `status`;
-- `detected_at`.
-
-Estos índices permiten consultar incidencias por ejecución, entidad afectada, severidad, estado o fecha.
-
----
-
-## 5. Relación con verticales actuales
-
-## 5.1. Vertical Sevilla Geo
-
-La vertical Sevilla Geo puede registrar incidencias como:
+Incidencias posibles:
 
 - geometría inválida;
 - barrio sin distrito;
 - nombre oficial vacío;
-- geometría vacía;
-- error al descargar o leer el GeoJSON.
+- error al descargar/leer GeoJSON.
 
-Estas incidencias se asociarían al `source_run` correspondiente y, si aplica, al `raw_asset` geográfico.
+### 7.2. OSM / Overpass
 
----
-
-## 5.2. Vertical OSM / Overpass
-
-La vertical OSM / Overpass puede registrar incidencias como:
+Incidencias posibles:
 
 - POI sin nombre;
 - POI sin coordenadas;
 - categoría no mapeada;
 - posible duplicado;
-- local fuera de la geometría de barrios;
-- respuesta raw incompleta;
-- error de esquema en el JSON de Overpass.
+- local fuera de geometría oficial;
+- JSON Overpass incompleto.
 
-Estas incidencias permiten medir la calidad de la ingesta y priorizar mejoras.
+### 7.3. Google Places
 
----
-
-## 5.3. Vertical Google Places
-
-La vertical Google Places puede registrar incidencias como:
+Incidencias posibles:
 
 - respuesta sin `places`;
 - local sin coordenadas;
 - local sin nombre;
 - categoría Google no mapeada;
-- duplicado potencial con OSM;
+- duplicado potencial;
 - error de API;
-- local sin asignación geográfica.
+- local sin barrio.
 
----
+### 7.4. Google Places Reviews
 
-## 5.4. Vertical Google Places Reviews
-
-La vertical Google Reviews puede registrar incidencias como:
+Incidencias posibles:
 
 - local sin `place_source_ref` válida;
 - respuesta sin reviews;
@@ -448,211 +287,193 @@ La vertical Google Reviews puede registrar incidencias como:
 - payload duplicado;
 - review no elegible para IA.
 
----
+### 7.5. Yelp Open Dataset
 
-## 5.5. Vertical Yelp Open Dataset
+Incidencias posibles:
 
-Yelp Open Dataset puede registrar incidencias como:
-
-- negocio gastronómico sin coordenadas;
+- negocio sin coordenadas;
 - review sin texto mínimo;
-- negocio sin categorías útiles;
-- business_id sin mapeo a `place`;
-- review_id sin mapeo a `review`;
-- problemas al procesar JSON Lines;
-- registros no elegibles para corpus IA.
-
-En la integración actual, Yelp se utiliza como prototipo IA y no como fuente productiva de Sevilla.
+- `business_id` sin mapping;
+- `review_id` sin mapping;
+- problema JSON Lines;
+- registros no elegibles para corpus.
 
 ---
 
-## 6. Calidad específica de la capa IA
+## 8. Calidad específica de la capa IA
 
-La capa IA tiene controles adicionales porque depende de varios mapeos entre artefactos y entidades canónicas.
+### 8.1. Catálogo de platos
 
-### 6.1. Catálogo de platos
-
-El catálogo de platos se valida con checks como:
+Checks:
 
 - número total de platos;
 - número total de aliases;
 - platos sin alias;
 - aliases duplicados;
-- aliases compartidos entre varios platos;
-- existencia de alias canónico;
-- distribución por idioma y tipo de alias.
+- aliases compartidos;
+- idioma;
+- elegibilidad para ranking.
 
-Script asociado:
+Scripts:
 
 ```powershell
 python -m scripts.check_ai_dish_catalog
 ```
 
+Para Sevilla, el catálogo local validado contiene:
+
+```text
+dish_catalog = 190
+dish_alias = 243
+```
+
 ---
 
-### 6.2. Preparación para cargas posteriores
+### 8.2. Preparación downstream
 
-Antes de cargar menciones, señales y ranking, se comprueba que los artefactos puedan mapearse contra la base.
+Antes de cargar IA se comprueba que los artefactos puedan mapearse contra la base:
 
-Checks principales:
+```text
+source review id → review interno
+source place id  → place_source_ref → place
+dish name        → dish
+```
 
-- `review_id` del artefacto contra `review.source_review_id`;
-- `business_id` del artefacto contra `place_source_ref.source_record_id`;
-- nombres de platos contra `dish.normalized_name`;
-- existencia de tablas IA;
-- existencia de modelos y runs esperados.
-
-Script asociado:
+Scripts generales:
 
 ```powershell
 python -m scripts.check_ai_downstream_import_readiness
 ```
 
-Este check impide avanzar si no existe el puente:
-
-```text
-Yelp business_id → place_source_ref → place_id
-Yelp review_id   → review.source_review_id → review_id interno
-```
-
 ---
 
-### 6.3. Carga de menciones y sentimiento
+### 8.3. Carga de menciones y sentimiento
 
-El loader de menciones y sentimiento valida:
+Checks principales:
 
-- líneas JSONL válidas;
+- JSONL válido;
 - campos obligatorios;
 - mapeo a `review`;
 - mapeo a `place`;
 - mapeo a `dish`;
-- etiquetas de sentimiento válidas;
-- consistencia business-review;
-- ausencia de skips relevantes.
+- sentimiento válido;
+- ausencia de huérfanos.
 
-Script asociado:
+Resultados Sevilla:
 
-```powershell
-python -m scripts.load_ai_mentions_and_sentiment
+```text
+dish_mention = 2.979
+dish_mention_sentiment = 2.979
+missing_review_mapping = 0
+missing_place_mapping = 0
+missing_dish_mapping = 0
+invalid_sentiment = 0
 ```
-
-Resultado validado:
-
-| Métrica | Valor |
-|---|---:|
-| Menciones cargadas | 94.932 |
-| Sentimientos cargados | 94.932 |
-| Líneas inválidas | 0 |
-| Registros saltados por falta de mapping | 0 |
 
 ---
 
-### 6.4. Carga de señales y ranking
+### 8.4. Carga de señales y ranking
 
-El loader de señales y ranking valida:
+Checks principales:
 
-- mapeo `business_id → place_id`;
-- mapeo `canonical_dish_name_v2 → dish_id`;
-- existencia de señal para cada candidato;
-- scores válidos;
+- mapeo `place_id`;
+- mapeo `dish_id`;
+- existencia de señal para cada ranking;
+- score 0–100;
 - tiers válidos;
-- ranking marcado como prototipo cuando procede.
+- barrio y distrito presentes en seleccionados;
+- producción desactivada en piloto.
 
-Script asociado:
+Resultados Sevilla:
 
-```powershell
-python -m scripts.load_ai_signals_and_ranking
+```text
+dish_place_signal = 2.212
+hidden_gem_candidate = 256
+hidden_gem_selected = 150
+ranking_without_scoped_signal = 0
+ranking_score_out_of_range = 0
+selected_without_neighborhood = 0
+selected_without_district = 0
+selected_marked_production_ready = 0
 ```
-
-Resultado validado:
-
-| Métrica | Valor |
-|---|---:|
-| Señales local-plato cargadas | 31.036 |
-| Candidatos Hidden Gems cargados | 622 |
-| Registros saltados por falta de mapping | 0 |
-| Ranking scope | `yelp_prototype` |
-| Producción Sevilla | No |
 
 ---
 
-### 6.5. Check final del ranking cargado
+### 8.5. Check final del piloto Sevilla
 
-El check final valida:
-
-- conteos de todas las tablas IA;
-- distribución de sentimiento;
-- señales agregadas;
-- tiers de ranking;
-- top candidatos;
-- integridad referencial;
-- ausencia de huérfanos;
-- estado `ready_for_querying_ai_ranking`.
-
-Script asociado:
+Script:
 
 ```powershell
-python -m scripts.check_ai_ranking_loaded
+python -m scripts.check_sevilla_ai_pilot_loaded
 ```
 
-Resultado final validado:
+Resultado final:
 
-| Elemento | Resultado |
-|---|---:|
-| `dish` | 9.937 |
-| `dish_alias` | 10.235 |
-| `dish_mention` | 94.932 |
-| `dish_mention_sentiment` | 94.932 |
-| `dish_place_signal` | 31.036 |
-| `hidden_gem_candidate` | 622 |
-| Huérfanos detectados | 0 |
-| `ready_for_querying_ai_ranking` | `true` |
+```text
+ready_for_sevilla_pilot_queries = true
+errors = []
+warnings = []
+```
+
+Checks destacados:
+
+```text
+required_tables_exist = true
+required_model_versions_exist = true
+required_ai_runs_exist = true
+all_ai_runs_completed = true
+no_orphan_mentions_review = true
+no_orphan_mentions_place = true
+no_orphan_mentions_dish = true
+no_mentions_without_sentiment = true
+no_ranking_without_scoped_signal = true
+score_in_0_100 = true
+selected_consistency_ok = true
+selected_not_production_ready = true
+selected_have_neighborhood = true
+selected_have_district = true
+selected_have_explanation = true
+artifact_scope_ok = true
+db_ranking_scope_ok = true
+selected_global_ranks_unique = true
+```
 
 ---
 
-## 7. Relación con reporting de calidad
+## 9. Reporting de calidad
 
-`validation_issue` y los reportes JSON generados por los checks pueden alimentar reportes de calidad como:
+`validation_issue` y los reportes JSON permiten construir métricas como:
 
-- número de incidencias por fuente;
-- número de incidencias por run;
+- incidencias por fuente;
+- incidencias por run;
 - incidencias abiertas por severidad;
-- porcentaje de registros rechazados;
-- problemas geográficos frecuentes;
+- registros rechazados;
+- problemas geográficos;
 - categorías sin mapear;
-- duplicados potenciales;
-- cobertura del catálogo IA;
-- porcentaje de menciones con sentimiento de alta fiabilidad;
-- candidatos con baja evidencia;
-- rankings por scope y estado productivo.
-
-Esto convierte la calidad en un elemento medible y no solo en una revisión manual informal.
+- cobertura de catálogo IA;
+- fiabilidad de sentimiento;
+- candidatos por tier;
+- rankings por scope;
+- candidatos seleccionados por distrito/barrio/plato.
 
 ---
 
-## 8. Decisiones generales del bloque de calidad
-
-Las decisiones principales son:
+## 10. Decisiones generales
 
 1. Las incidencias relevantes se estructuran en base de datos.
-2. Toda incidencia pertenece a una ejecución cuando procede de ingesta fuente.
-3. Una incidencia puede vincularse a un raw asset.
-4. La entidad afectada se representa de forma polimórfica.
-5. Las incidencias tienen tipo, severidad y estado.
-6. Los códigos de incidencia deben ser estables y en `snake_case`.
-7. La tabla sirve para auditoría, reporting y mejora continua del pipeline.
-8. La capa IA no debe cargarse si no hay mapeo completo con `review`, `place` y `dish`.
-9. Yelp se valida como prototipo IA, no como ranking productivo de Sevilla.
-10. Los checks deben generar reportes reproducibles para dejar evidencia del estado del sistema.
+2. Los checks generan reportes JSON reproducibles.
+3. La capa IA no debe cargarse si hay mapeos incompletos.
+4. Yelp se valida como prototipo IA.
+5. Sevilla pilot se valida como piloto local real, pero no producción.
+6. `is_production_ready = true` solo debe usarse tras validación posterior.
+7. La calidad debe ser medible y consultable, no solo revisada manualmente.
 
 ---
 
-## 9. Conclusión
+## 11. Conclusión
 
-El bloque de calidad permite que Hidden Gems controle y documente los problemas detectados durante el pipeline.
+El bloque de calidad permite que Hidden Gems controle y documente problemas del pipeline y de la capa IA.
 
-Gracias a `validation_issue`, el sistema puede auditar errores, advertencias y problemas de consistencia de forma estructurada.
+La validación actual confirma que tanto el prototipo Yelp como el piloto Sevilla pueden cargarse y consultarse sin huérfanos críticos.
 
-Gracias a los checks específicos de IA, también puede validar que los resultados inteligentes no queden desconectados del modelo canónico y que el ranking cargado sea consultable con garantías.
-
-Esta entidad y los scripts de calidad asociados son fundamentales para mantener la confianza en los datos y orientar las siguientes fases de normalización, adaptación a Sevilla, ranking por barrio y explotación analítica.
+El siguiente paso natural es utilizar estos reportes como base para dashboard, revisión manual de candidatos y futuras mejoras del ranking.

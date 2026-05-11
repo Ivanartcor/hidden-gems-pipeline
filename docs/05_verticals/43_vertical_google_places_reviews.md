@@ -1,5 +1,9 @@
 # Vertical Google Places Reviews
 
+
+> **Nota de actualización (piloto IA Sevilla):** este documento conserva toda la documentación original de la subvertical Google Places Reviews y añade el estado posterior alcanzado. La subvertical sigue teniendo como responsabilidad adquirir y persistir reviews reales asociadas a locales ya consolidados. Posteriormente, esas reviews ya fueron exportadas y procesadas por la capa IA en modo piloto `sevilla_pilot`. Las partes que hablan de “futuras tareas NLP” se mantienen como contexto histórico de diseño, pero el flujo ya se ha ejecutado al menos como prototipo local no productivo.
+
+
 ## 1. Objetivo de la vertical
 
 La vertical **Google Places Reviews** amplía la integración de Google Places para obtener comentarios reales de locales gastronómicos ya consolidados en el modelo canónico de Hidden Gems.
@@ -1360,3 +1364,162 @@ WHERE source_system = google_places
 ```
 
 Esta separación mantiene limpio el diseño: la vertical Google Reviews adquiere y persiste reseñas locales; la capa IA procesa esas reseñas después como una fase derivada y versionada.
+
+---
+
+## 36. Actualización posterior: recolección ampliada y uso en el piloto IA Sevilla
+
+Después de la validación inicial descrita en este documento, la subvertical Google Places Reviews se utilizó para una recolección más amplia orientada al **piloto IA Sevilla**.
+
+Esta actualización no elimina ni sustituye el flujo original; lo completa con el estado real posterior.
+
+### 36.1. Recolección ampliada de reviews
+
+La subvertical pasó de las primeras tandas controladas de 5 locales a una recolección más amplia sobre locales de Google Places ya consolidados.
+
+Resultado aproximado de la base final de trabajo:
+
+```text
+Google Places locales: 800+
+Google Places reviews: 4.000+
+```
+
+El flujo mantuvo las mismas garantías:
+
+```text
+Place Details controlado
+→ raw_asset
+→ staging reviews
+→ checks de staging
+→ importación en review
+→ checks de batch
+```
+
+### 36.2. Límite importante de Google Reviews
+
+La limitación ya documentada sigue siendo válida:
+
+```text
+Google no devuelve necesariamente todas las reseñas históricas de un local.
+```
+
+En la práctica, Places API devuelve un subconjunto limitado de reviews por local. Por eso el piloto Sevilla debe interpretarse como un prototipo basado en evidencia parcial, no como una lectura exhaustiva de todo el histórico de opiniones de Google.
+
+### 36.3. Exportación para IA
+
+Una vez cargadas las reviews locales, se creó y utilizó un flujo de exportación para IA:
+
+```text
+hidden_gems.review
+WHERE source_system = google_places
+  AND is_operational_review = true
+  AND is_training_eligible = true
+→ export_reviews_for_ai.py
+→ reviews_for_ai_google_places.jsonl
+```
+
+Este artefacto sirvió como entrada para los notebooks locales de Sevilla.
+
+### 36.4. Procesamiento IA ejecutado sobre reviews locales
+
+Las reviews exportadas fueron procesadas mediante el flujo de notebooks del piloto Sevilla:
+
+```text
+12. Exploración corpus Sevilla
+13. Detección de candidatos de platos
+14. Normalización y catálogo local Sevilla
+15. Sentimiento por mención
+16. Agregación local-plato
+17. Ranking Hidden Gems Sevilla piloto
+```
+
+El resultado demuestra que la subvertical no solo deja las reviews preparadas para NLP, sino que ya ha alimentado una primera ejecución completa del módulo IA local.
+
+### 36.5. Resultados IA derivados de Google Places Reviews
+
+El piloto IA Sevilla cargado en PostgreSQL dejó:
+
+```text
+dish = 190
+dish_alias = 243
+dish_mention = 2.979
+dish_mention_sentiment = 2.979
+dish_place_signal = 2.212
+hidden_gem_candidate = 256
+hidden_gem_selected = 150
+```
+
+También se validó que:
+
+```text
+ready_for_sevilla_pilot_queries = true
+errors = []
+warnings = []
+```
+
+### 36.6. Ranking generado
+
+El ranking generado se conserva como piloto:
+
+```text
+artifact_ranking_scope = sevilla_pilot
+db_ranking_scope = other
+is_production_ready = false
+```
+
+La razón de `db_ranking_scope = other` es que la constraint actual de `hidden_gem_candidate.ranking_scope` no incluye todavía el valor literal `sevilla_pilot`. El valor real del alcance se conserva en la configuración JSON del candidato.
+
+### 36.7. Nuevo papel de esta vertical dentro del proyecto
+
+Antes de esta actualización, esta vertical se describía como preparación para futuras tareas de IA.
+
+Actualmente su papel queda más claro:
+
+```text
+Google Places Reviews
+→ fuente local real de texto gastronómico
+→ entrada operativa para IA Sevilla
+→ base del ranking sevilla_pilot
+```
+
+La vertical sigue sin ejecutar IA directamente. Su responsabilidad continúa siendo:
+
+```text
+adquirir reviews
+validarlas
+persistirlas
+mantener trazabilidad
+proteger integridad place/review/barrio
+```
+
+La capa IA se ejecuta después como proceso derivado y versionado.
+
+### 36.8. Estado actualizado
+
+Además del estado funcional inicial, ahora se añade:
+
+```text
+[OK] Recolección ampliada de Google Places Reviews
+[OK] Base local con 4.000+ reviews aproximadas
+[OK] Exportación reviews_for_ai_google_places.jsonl
+[OK] Procesamiento IA Sevilla completado en notebooks 12–17
+[OK] Señales local-plato generadas
+[OK] Ranking sevilla_pilot generado
+[OK] Resultados cargados en PostgreSQL
+[OK] Check final de carga Sevilla sin errores ni warnings
+[OK] Consulta demo del ranking Sevilla funcionando
+```
+
+### 36.9. Siguientes pasos tras el piloto
+
+Después de esta fase, los siguientes pasos ya no son “aplicar por primera vez la IA”, sino:
+
+```text
+1. consolidar scripts demo finales;
+2. crear dashboard piloto;
+3. revisar manualmente falsos positivos;
+4. analizar cobertura por barrio y plato;
+5. valorar si merece la pena mejorar reglas o entrenar modelos específicos;
+6. decidir cuándo una futura versión puede marcarse como producción.
+```
+

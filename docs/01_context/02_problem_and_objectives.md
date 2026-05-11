@@ -27,6 +27,7 @@ categorías
 fuentes externas
 barrio / distrito
 calidad del dato
+ranking explicable
 ```
 
 Por tanto, el problema principal no es la ausencia de datos, sino la falta de un sistema que los **adquiera, unifique, limpie, estructure, trace y prepare de manera consistente** para análisis gastronómico avanzado.
@@ -43,11 +44,11 @@ Esa necesidad técnica se concreta en varios puntos:
 - garantizar trazabilidad desde la fuente hasta el dato estructurado;
 - separar claramente dato raw, dato procesado y dato derivado;
 - construir una base geográfica fiable para trabajar por barrios;
-- disponer de un modelo de datos que represente correctamente locales, reseñas, categorías, fuentes, ejecuciones y geografía;
+- disponer de un modelo de datos que represente correctamente locales, reseñas, categorías, fuentes, ejecuciones, geografía y resultados IA;
 - preparar corpus textuales para NLP;
 - integrar resultados IA sin crear entidades huérfanas;
 - validar que menciones, sentimientos, señales y rankings se conectan con `place`, `review` y `dish`;
-- diferenciar prototipos IA de resultados productivos finales.
+- diferenciar prototipos IA, pilotos locales y resultados productivos finales.
 
 Este proyecto nace precisamente para cubrir esa necesidad fundacional.
 
@@ -63,12 +64,14 @@ El objetivo no es solo almacenar locales o reseñas, sino construir una base cap
 fuente externa
 → dato raw
 → dato canónico
+→ review operativa
 → corpus textual
 → detección de platos
 → sentimiento por mención
 → señales agregadas
-→ ranking prototipo
-→ futuras consultas por barrio
+→ ranking Hidden Gems
+→ consulta demo
+→ futuro dashboard/API
 ```
 
 ---
@@ -99,25 +102,30 @@ Construir datasets y corpus que permitan trabajar con reseñas gastronómicas de
 
 Vincular los locales a unidades territoriales oficiales, permitiendo que el análisis posterior se realice por barrio y no solo por coordenadas o listados genéricos.
 
-### 4.7. Desarrollar una primera capa IA prototipo
+### 4.7. Desarrollar una capa IA de extracción y scoring
 
-Crear una primera versión de la lógica de IA para:
+Crear una primera versión de la lógica IA para:
 
 - detectar menciones de platos;
 - normalizar nombres de platos;
 - asociar sentimiento a menciones;
-- agregar señales por negocio y plato;
-- generar candidatos Hidden Gems en un contexto prototipo.
+- agregar señales por local y plato;
+- generar candidatos Hidden Gems;
+- explicar el resultado mediante scores, tiers y texto justificativo.
 
 ### 4.8. Integrar resultados IA en PostgreSQL
 
 Persistir los resultados derivados de IA en tablas específicas, con versionado, trazabilidad, checks de integridad y vistas de consulta.
 
-### 4.9. Facilitar la explotación analítica futura
+### 4.9. Validar el flujo sobre datos reales de Sevilla
+
+Aplicar la cadena IA sobre reviews reales de Google Places en Sevilla, generando un ranking piloto local con cobertura por barrios y distritos.
+
+### 4.10. Facilitar la explotación analítica futura
 
 Construir una base que permita avanzar hacia ranking por barrio, API, dashboard, análisis BI o productos de consulta sin rediseñar el núcleo del sistema.
 
-### 4.10. Documentar el sistema de forma profesional
+### 4.11. Documentar el sistema de forma profesional
 
 Generar documentación clara y estructurada para que el proyecto sea entendible, reproducible y mantenible.
 
@@ -134,8 +142,8 @@ Permite:
 - apoyar el desarrollo de verticales de adquisición independientes;
 - dar coherencia al modelo de datos desde el inicio;
 - conectar datos geográficos, reseñas y señales IA;
-- diferenciar claramente corpus experimental, dato operativo y ranking productivo;
-- sentar la base para decisiones futuras de calidad, normalización, IA y análisis.
+- diferenciar claramente corpus experimental, dato operativo, piloto local y ranking productivo;
+- sentar la base para decisiones futuras de calidad, normalización, IA, dashboard y análisis.
 
 En este sentido, el proyecto no solo persigue “tener una base de datos”, sino construir una **columna vertebral técnica** sobre la que Hidden Gems pueda crecer sin perder consistencia.
 
@@ -151,9 +159,33 @@ Se considerará que esta fase cumple sus objetivos si el proyecto logra:
 - garantizar trazabilidad entre fuentes, ejecuciones y registros;
 - cargar reseñas operativas cuando exista vínculo con locales canónicos;
 - generar corpus NLP externo controlado;
-- validar una primera capa IA prototipo;
+- validar una primera capa IA prototipo sobre Yelp;
+- aplicar el flujo IA sobre reviews reales de Sevilla;
 - integrar los resultados IA en PostgreSQL sin huérfanos;
 - disponer de vistas y consultas para explotar los resultados;
-- dejar resuelto el marco estructural necesario para continuar hacia Sevilla productivo.
+- generar un ranking piloto `sevilla_pilot` consultable;
+- dejar resuelto el marco estructural necesario para dashboard, API y mejora IA futura.
 
 El éxito, por tanto, no se mide por tener ya el producto final completo, sino por haber construido correctamente la **infraestructura de datos e IA que lo hace viable**.
+
+---
+
+## 7. Estado de cumplimiento
+
+A día de esta versión, el proyecto ya ha cumplido una parte importante de esos objetivos:
+
+```text
+Sevilla Geo                         ✅ implementado
+OSM / Overpass                      ✅ implementado
+Google Places Text Search           ✅ implementado
+Google Places Reviews               ✅ implementado
+Yelp Open Dataset                   ✅ implementado como corpus/prototipo
+Módulo IA Yelp                      ✅ implementado e integrado
+Piloto IA Sevilla                   ✅ implementado, cargado y validado
+Vistas SQL IA                       ✅ disponibles
+Scripts demo de consulta            ✅ disponibles
+Dashboard                          ⏳ siguiente fase
+Mejora IA con modelos españoles     ⏳ fase posterior
+```
+
+El objetivo inmediato pasa a ser consolidar la explotación del piloto mediante scripts demo finales, dashboard y revisión de calidad con uso real.

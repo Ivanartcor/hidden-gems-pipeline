@@ -4,25 +4,26 @@
 
 Este documento describe la capa de consulta creada sobre las tablas IA de Hidden Gems.
 
-Una vez cargados los datos IA en PostgreSQL, se creó un script SQL de vistas para facilitar la exploración, auditoría y demostración del ranking.
+Una vez cargados los datos IA en PostgreSQL, se creó una capa de vistas SQL y scripts de demo para facilitar:
 
-La implementación está en:
+- exploración de rankings;
+- auditoría de señales;
+- revisión de menciones;
+- exportación de resultados;
+- demostración del prototipo Yelp;
+- demostración del piloto local Sevilla.
+
+La implementación SQL principal está en:
 
 ```text
 db/ddl/08_ai_views.sql
-```
-
-Y el script de demo está en:
-
-```text
-scripts/query_ai_ranking_demo.py
 ```
 
 ---
 
 ## Por qué crear vistas
 
-Las tablas IA están normalizadas y separadas por responsabilidad:
+Las tablas IA están normalizadas:
 
 ```text
 dish
@@ -40,14 +41,13 @@ Las vistas permiten tener salidas legibles para:
 - ver rankings;
 - consultar candidatos;
 - auditar señales;
-- revisar menciones que justifican un candidato;
-- exportar resultados para demo o análisis.
+- revisar menciones justificativas;
+- exportar resultados para demo o análisis;
+- alimentar un futuro dashboard.
 
 ---
 
 ## Vistas creadas
-
-`08_ai_views.sql` crea las siguientes vistas:
 
 ```text
 vw_ai_pipeline_run_summary
@@ -60,26 +60,19 @@ vw_ai_hidden_gems_city_summary
 vw_ai_dish_mentions_with_sentiment
 ```
 
+La vista más general y reutilizable es:
+
+```text
+vw_ai_hidden_gem_candidate_detail
+```
+
+Es la base para consultar tanto Yelp prototype como Sevilla pilot.
+
 ---
 
 # 1. `vw_ai_pipeline_run_summary`
 
-## Propósito
-
-Consultar ejecuciones IA registradas.
-
-## Uso
-
-Permite revisar:
-
-- código del run;
-- tipo de ejecución;
-- estado;
-- fecha de inicio y fin;
-- métricas;
-- artefactos de entrada/salida.
-
-## Ejemplo
+Permite consultar ejecuciones IA registradas:
 
 ```sql
 SELECT *
@@ -87,27 +80,22 @@ FROM hidden_gems.vw_ai_pipeline_run_summary
 ORDER BY started_at DESC;
 ```
 
+Sirve para revisar:
+
+- código del run;
+- tipo de ejecución;
+- estado;
+- fechas;
+- métricas;
+- artefactos de entrada/salida.
+
 ---
 
 # 2. `vw_ai_dish_place_signals`
 
-## Propósito
+Consulta señales agregadas por local y plato.
 
-Consultar señales agregadas por local y plato.
-
-Equivale a una versión legible de `dish_place_signal` unida con `place` y `dish`.
-
-## Uso
-
-Sirve para responder:
-
-```text
-¿Qué platos tienen mejor señal en cada local?
-¿Qué locales tienen más menciones positivas para un plato?
-¿Qué pares local-plato tienen evidencia fuerte?
-```
-
-## Ejemplo
+Ejemplo:
 
 ```sql
 SELECT
@@ -125,11 +113,17 @@ ORDER BY bayesian_sentiment_score DESC
 LIMIT 50;
 ```
 
+Sirve para responder:
+
+```text
+¿Qué platos tienen mejor señal en cada local?
+¿Qué locales tienen más menciones positivas para un plato?
+¿Qué pares local-plato tienen evidencia suficiente?
+```
+
 ---
 
 # 3. `vw_ai_hidden_gem_candidate_detail`
-
-## Propósito
 
 Vista detallada de candidatos Hidden Gems.
 
@@ -140,26 +134,23 @@ hidden_gem_candidate
 + dish_place_signal
 + place
 + dish
++ neighborhood/district cuando aplica
 ```
-
-## Uso
-
-Es la vista más completa para analizar el ranking.
 
 Incluye:
 
 - ranking;
 - tier;
 - local;
-- dirección;
 - plato;
 - score;
 - componentes;
 - penalizaciones;
-- señales de evidencia;
+- evidencia;
+- barrio/distrito;
 - explicación textual.
 
-## Ejemplo
+Ejemplo general:
 
 ```sql
 SELECT
@@ -174,22 +165,21 @@ SELECT
     negative_ratio,
     ranking_explanation
 FROM hidden_gems.vw_ai_hidden_gem_candidate_detail
-WHERE ranking_scope = 'yelp_prototype'
 ORDER BY hidden_gem_selected_rank
 LIMIT 30;
 ```
 
 ---
 
-# 4. `vw_ai_hidden_gems_yelp_top`
+# 4. Consulta Yelp prototype
 
-## Propósito
+Vista simplificada:
 
-Vista simplificada para demo rápida del ranking Yelp.
+```text
+vw_ai_hidden_gems_yelp_top
+```
 
-Esta es la vista recomendada para enseñar los resultados principales.
-
-## Consulta principal
+Consulta:
 
 ```sql
 SELECT *
@@ -197,196 +187,14 @@ FROM hidden_gems.vw_ai_hidden_gems_yelp_top
 LIMIT 20;
 ```
 
-## Campos clave
-
-```text
-hidden_gem_selected_rank
-hidden_gem_tier
-place_name
-address_text
-dish_name
-hidden_gem_score
-mention_count
-review_count
-positive_ratio
-negative_ratio
-evidence_tier
-aggregate_quality_tier
-ranking_explanation
-```
-
-## Ejemplo de resultado esperado
-
-Los primeros candidatos validados son:
-
-```text
-1. Sushi Ushi → sushi → 82.92816
-2. Taqueria Cuernavaca → tacos → 82.04289
-3. Blues City Deli → sandwich → 81.98466
-```
-
----
-
-# 5. `vw_ai_hidden_gems_place_summary`
-
-## Propósito
-
-Resumen por local de candidatos seleccionados.
-
-## Uso
-
-Permite responder:
-
-```text
-¿Qué locales tienen más platos candidatos?
-¿Qué local tiene el score máximo más alto?
-¿Qué locales parecen especialmente fuertes en varias categorías?
-```
-
-## Ejemplo
-
-```sql
-SELECT *
-FROM hidden_gems.vw_ai_hidden_gems_place_summary
-ORDER BY selected_count DESC, max_hidden_gem_score DESC
-LIMIT 30;
-```
-
-## Ejemplos observados
-
-En el check final aparecen locales como:
-
-```text
-District Donuts Sliders Brew
-Jones
-Khyber Pass Pub
-Luke
-Katie's Restaurant & Bar
-```
-
-con varios candidatos seleccionados.
-
----
-
-# 6. `vw_ai_hidden_gems_dish_summary`
-
-## Propósito
-
-Resumen por plato dentro del ranking seleccionado.
-
-## Uso
-
-Permite ver qué platos aparecen más en los candidatos finales.
-
-## Ejemplo
-
-```sql
-SELECT *
-FROM hidden_gems.vw_ai_hidden_gems_dish_summary
-ORDER BY selected_count DESC, max_hidden_gem_score DESC
-LIMIT 30;
-```
-
-## Ejemplos observados
-
-Los platos con más apariciones seleccionadas incluyen:
-
-```text
-pizza
-burger
-sushi
-tacos
-fries
-shrimp
-steak
-wings
-sandwich
-oysters
-```
-
----
-
-# 7. `vw_ai_hidden_gems_city_summary`
-
-## Propósito
-
-Resumen por ciudad/dirección geográfica disponible en Yelp.
-
-## Uso
-
-Permite explorar el prototipo por ciudades del dataset Yelp.
-
-## Ejemplo
-
-```sql
-SELECT *
-FROM hidden_gems.vw_ai_hidden_gems_city_summary
-ORDER BY selected_count DESC, max_hidden_gem_score DESC;
-```
-
-## Nota
-
-Esta vista todavía no equivale a barrios de Sevilla. Para el producto final habrá que usar `neighborhood` y `place_neighborhood_assignment`.
-
----
-
-# 8. `vw_ai_dish_mentions_with_sentiment`
-
-## Propósito
-
-Permite auditar las menciones concretas y su sentimiento.
-
-Es clave para explicar por qué un plato recibe una señal positiva o negativa.
-
-## Ejemplo recomendado
-
-```sql
-SELECT *
-FROM hidden_gems.vw_ai_dish_mentions_with_sentiment
-WHERE place_name = 'Sushi Ushi'
-  AND dish_name = 'sushi'
-ORDER BY sentiment_confidence DESC
-LIMIT 25;
-```
-
-## Uso
-
-Sirve para:
-
-- revisar menciones positivas/negativas;
-- auditar errores del NER;
-- verificar sentimiento por mención;
-- justificar candidatos de ranking;
-- crear muestras de validación manual.
-
----
-
-## Script de demo: `query_ai_ranking_demo.py`
-
-Además de las vistas SQL, se creó un script Python para consultar la capa IA desde el repositorio.
-
-## Ejecución básica
-
-```powershell
-python -m scripts.query_ai_ranking_demo
-```
-
-## Top N candidatos
+Script:
 
 ```powershell
 python -m scripts.query_ai_ranking_demo `
   --top-n 20
 ```
 
-## Exportar resultados
-
-```powershell
-python -m scripts.query_ai_ranking_demo `
-  --top-n 50 `
-  --export-dir data/artifacts/ai/query_demo
-```
-
-## Consultar candidato concreto
+Detalle con menciones:
 
 ```powershell
 python -m scripts.query_ai_ranking_demo `
@@ -396,19 +204,132 @@ python -m scripts.query_ai_ranking_demo `
   --mentions-top-n 25
 ```
 
-## Filtrar por ciudad
+Estado:
 
-```powershell
-python -m scripts.query_ai_ranking_demo `
-  --city "New Orleans" `
-  --top-n 30
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
 ```
 
 ---
 
-## Consultas SQL útiles
+# 5. Consulta Sevilla pilot
 
-### Top 20 candidatos
+Script principal:
+
+```text
+scripts/query_sevilla_hidden_gems_demo.py
+```
+
+Este script usa la capa de vistas IA y aplica filtros específicos para el piloto Sevilla:
+
+```text
+artifact_ranking_scope = sevilla_pilot
+ranking_scope en DB = other
+is_selected = true
+is_production_ready = false
+```
+
+Ejemplo global:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --limit 30 `
+  --top-per-group 5
+```
+
+Filtro por distrito:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --district "Casco Antiguo" `
+  --limit 20
+```
+
+Filtro por barrio:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --neighborhood "TRIANA" `
+  --limit 20
+```
+
+Filtro por plato:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --dish "tarta de queso" `
+  --limit 20
+```
+
+Detalle con menciones:
+
+```powershell
+python -m scripts.query_sevilla_hidden_gems_demo `
+  --place-name "Golondrinas" `
+  --include-mentions `
+  --limit 10
+```
+
+---
+
+## 6. Outputs del script Sevilla demo
+
+El script genera:
+
+```text
+data/artifacts/ai/sevilla/query_demo/
+  sevilla_demo_top_global.csv
+  sevilla_demo_top_by_district.csv
+  sevilla_demo_top_by_neighborhood.csv
+  sevilla_demo_top_by_dish.csv
+  sevilla_demo_district_summary.csv
+  sevilla_demo_neighborhood_summary.csv
+  sevilla_demo_dish_summary.csv
+  sevilla_demo_place_summary.csv
+  sevilla_hidden_gems_query_demo_report.json
+```
+
+Estos ficheros son candidatos naturales para alimentar el dashboard inicial.
+
+---
+
+## 7. Resultados de consulta Sevilla pilot
+
+La consulta demo validó que el ranking es explotable por:
+
+- top global;
+- distrito;
+- barrio;
+- plato;
+- local;
+- detalle con menciones.
+
+Ejemplo de top en Casco Antiguo:
+
+```text
+Il Ristorantino Dell'Avvocato Calle Cuna → pizza
+Tarannà → atún
+Il Ristorantino Dell´Avvocato Sevilla → pizza
+Taberna Los Terceros → solomillo al whisky
+```
+
+Resumen global validado:
+
+```text
+selected_hidden_gem_candidates = 150
+selected_places = 122
+selected_dishes = 38
+selected_neighborhoods = 55
+selected_districts = 11
+ready_for_sevilla_pilot_queries = true
+```
+
+---
+
+## 8. Consultas SQL útiles
+
+### Top candidatos genérico
 
 ```sql
 SELECT
@@ -421,57 +342,52 @@ SELECT
     review_count,
     positive_ratio,
     negative_ratio
-FROM hidden_gems.vw_ai_hidden_gems_yelp_top
-LIMIT 20;
-```
-
-### Top platos seleccionados
-
-```sql
-SELECT
-    dish_name,
-    selected_count,
-    avg_hidden_gem_score,
-    max_hidden_gem_score
-FROM hidden_gems.vw_ai_hidden_gems_dish_summary
-ORDER BY selected_count DESC, max_hidden_gem_score DESC
+FROM hidden_gems.vw_ai_hidden_gem_candidate_detail
+WHERE is_selected = true
+ORDER BY hidden_gem_selected_rank
 LIMIT 30;
 ```
 
-### Top locales con más candidatos
+### Top candidatos Sevilla pilot
 
 ```sql
 SELECT
+    hidden_gem_selected_rank,
+    hidden_gem_tier,
     place_name,
-    selected_count,
-    avg_hidden_gem_score,
-    max_hidden_gem_score
-FROM hidden_gems.vw_ai_hidden_gems_place_summary
-ORDER BY selected_count DESC, max_hidden_gem_score DESC
+    dish_name,
+    hidden_gem_score,
+    district_name,
+    neighborhood_name,
+    ranking_explanation
+FROM hidden_gems.vw_ai_hidden_gem_candidate_detail
+WHERE is_selected = true
+  AND is_production_ready = false
+  AND ranking_scope = 'other'
+  AND ranking_config_json->>'artifact_ranking_scope' = 'sevilla_pilot'
+ORDER BY hidden_gem_selected_rank
 LIMIT 30;
 ```
 
-### Señales rankeables fuertes
+### Top por distrito
 
 ```sql
 SELECT
-    place_name,
-    dish_name,
-    mention_count,
-    review_count,
-    positive_ratio,
-    negative_ratio,
-    bayesian_sentiment_score,
-    evidence_tier,
-    aggregate_quality_tier
-FROM hidden_gems.vw_ai_dish_place_signals
-WHERE is_rankable_candidate = true
-  AND evidence_tier = 'strong'
-ORDER BY bayesian_sentiment_score DESC
-LIMIT 50;
+    district_name,
+    COUNT(*) AS selected_count,
+    COUNT(DISTINCT place_id) AS selected_places,
+    COUNT(DISTINCT dish_id) AS selected_dishes,
+    ROUND(AVG(hidden_gem_score)::numeric, 4) AS avg_score,
+    MAX(hidden_gem_score) AS max_score
+FROM hidden_gems.vw_ai_hidden_gem_candidate_detail
+WHERE is_selected = true
+  AND ranking_scope = 'other'
+  AND ranking_config_json->>'artifact_ranking_scope' = 'sevilla_pilot'
+GROUP BY district_name
+ORDER BY max_score DESC;
 ```
 
-### Auditoría de menciones positivas de un plato
+### Auditoría de menciones de un candidato
 
 ```sql
 SELECT
@@ -480,42 +396,48 @@ SELECT
     mention_text,
     sentiment_label,
     sentiment_confidence,
-    sentiment_reliability_tier,
     target_clause_context
 FROM hidden_gems.vw_ai_dish_mentions_with_sentiment
-WHERE place_name = 'Sushi Ushi'
-  AND dish_name = 'sushi'
-  AND sentiment_label = 'positive'
+WHERE place_name ILIKE '%Golondrinas%'
 ORDER BY sentiment_confidence DESC
 LIMIT 25;
 ```
 
 ---
 
-## Estado de la capa de consulta
-
-La capa de consulta está operativa.
-
-Se ha comprobado que:
+## 9. Estado de la capa de consulta
 
 ```text
-08_ai_views.sql se carga correctamente en PostgreSQL.
-query_ai_ranking_demo.py funciona correctamente.
-Las vistas devuelven candidatos, resúmenes y menciones justificativas.
+[OK] 08_ai_views.sql cargado en PostgreSQL
+[OK] query_ai_ranking_demo.py funcional para Yelp prototype
+[OK] query_sevilla_hidden_gems_demo.py funcional para Sevilla pilot
+[OK] vistas devuelven candidatos, señales y menciones justificativas
+[OK] exports CSV/JSON disponibles para dashboard
 ```
 
 ---
 
-## Importante
+## 10. Próxima evolución de la query layer
 
-Las vistas actuales están centradas en `ranking_scope = yelp_prototype`.
-
-Cuando el sistema evolucione hacia Sevilla, será recomendable crear vistas adicionales orientadas a barrios:
+Antes del dashboard conviene consolidar el contrato de datos:
 
 ```text
-vw_ai_hidden_gems_sevilla_top
-vw_ai_hidden_gems_by_neighborhood
-vw_ai_hidden_gems_neighborhood_dish_summary
+Top global
+Top por distrito
+Top por barrio
+Top por plato
+Detalle de candidato
+Resumen por local
+Resumen por plato
+Menciones justificativas
 ```
 
-Para ello será necesario que `hidden_gem_candidate.neighborhood_id` esté poblado.
+Opciones de consumo:
+
+```text
+1. CSV/JSON exportados por query_sevilla_hidden_gems_demo.py
+2. Consulta directa a PostgreSQL desde Streamlit
+3. API intermedia con FastAPI en una fase posterior
+```
+
+Para el dashboard piloto, la opción más rápida es usar CSV/JSON exportados por el script demo. Para una versión más cercana a producto, la opción posterior sería API o conexión directa a PostgreSQL.

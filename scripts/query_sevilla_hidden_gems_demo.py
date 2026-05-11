@@ -12,13 +12,16 @@ Recommended execution from repository root:
 
     python -m scripts.query_sevilla_hidden_gems_demo `
       --limit 30 `
-      --top-per-group 5
+      --top-per-group 5 `
+      --expected-selected 150 `
+      --strict
 
 Useful filtered examples:
 
     python -m scripts.query_sevilla_hidden_gems_demo `
       --district "Casco Antiguo" `
-      --limit 20
+      --limit 20 `
+      --strict
 
     python -m scripts.query_sevilla_hidden_gems_demo `
       --neighborhood "TRIANA" `
@@ -26,6 +29,10 @@ Useful filtered examples:
 
     python -m scripts.query_sevilla_hidden_gems_demo `
       --dish "tarta de queso" `
+      --limit 20
+
+    python -m scripts.query_sevilla_hidden_gems_demo `
+      --only-tier strong_hidden_gem `
       --limit 20
 
     python -m scripts.query_sevilla_hidden_gems_demo `
@@ -136,6 +143,23 @@ BASE_DETAIL_COLUMNS = [
     "quality_flags",
 ]
 
+MENTIONS_COLUMNS = [
+    "place_id",
+    "place_name",
+    "dish_id",
+    "dish_name",
+    "review_id",
+    "rating_value",
+    "sentiment_label",
+    "sentiment_score",
+    "sentiment_confidence",
+    "sentiment_reliability_tier",
+    "sentiment_reason",
+    "mention_text",
+    "context_sentence",
+    "review_text_raw",
+]
+
 TOP_DISPLAY_COLUMNS = [
     "hidden_gem_selected_rank",
     "hidden_gem_tier",
@@ -165,6 +189,15 @@ def validate_schema_name(schema: str) -> str:
     if not SCHEMA_RE.match(schema):
         raise ValueError(f"Invalid PostgreSQL schema name: {schema!r}")
     return schema
+
+
+def validate_uuid(value: str | None, arg_name: str) -> str | None:
+    if value in (None, ""):
+        return None
+    try:
+        return str(UUID(str(value)))
+    except ValueError as exc:
+        raise ValueError(f"{arg_name} must be a valid UUID. Received: {value!r}") from exc
 
 
 def qname(schema: str, name: str) -> str:
@@ -285,6 +318,34 @@ def save_json(data: dict[str, Any], output_path: Path) -> None:
         json.dump(to_builtin(data), f, indent=2, ensure_ascii=False, allow_nan=False)
 
 
+def get_view_columns(schema: str, view_name: str) -> set[str]:
+    sql = """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = :schema
+          AND table_name = :view_name
+        ORDER BY ordinal_position;
+    """
+    df = read_df(sql, {"schema": schema, "view_name": view_name})
+    return set(df["column_name"].tolist()) if not df.empty else set()
+
+
+def assert_view_columns(schema: str, view_name: str, required_columns: list[str]) -> None:
+    available = get_view_columns(schema, view_name)
+    if not available:
+        raise RuntimeError(
+            f"No se encontró la vista {schema}.{view_name} en information_schema.columns. "
+            "Comprueba que db/ddl/08_ai_views.sql está cargado."
+        )
+
+    missing = [col for col in required_columns if col not in available]
+    if missing:
+        raise RuntimeError(
+            f"La vista {schema}.{view_name} no contiene las columnas esperadas: {missing}. "
+            "Revisa que la vista esté actualizada."
+        )
+
+
 # -----------------------------------------------------------------------------
 # Query builders
 # -----------------------------------------------------------------------------
@@ -292,6 +353,8 @@ def save_json(data: dict[str, Any], output_path: Path) -> None:
 
 def load_candidate_detail(args: argparse.Namespace) -> pd.DataFrame:
     schema = validate_schema_name(args.schema)
+    assert_view_columns(schema, "vw_ai_hidden_gem_candidate_detail", BASE_DETAIL_COLUMNS)
+
     view_name = qname(schema, "vw_ai_hidden_gem_candidate_detail")
 
     where_parts = [
@@ -310,6 +373,10 @@ def load_candidate_detail(args: argparse.Namespace) -> pd.DataFrame:
     if not args.include_not_selected:
         where_parts.append("is_selected = TRUE")
 
+    if args.only_tier:
+        where_parts.append("hidden_gem_tier = :only_tier")
+        params["only_tier"] = args.only_tier
+
     if args.district:
         where_parts.append("district_name ILIKE :district")
         params["district"] = f"%{args.district}%"
@@ -327,11 +394,11 @@ def load_candidate_detail(args: argparse.Namespace) -> pd.DataFrame:
         params["place_name"] = f"%{args.place_name}%"
 
     if args.place_id:
-        where_parts.append("place_id::text = :place_id")
+        where_parts.append("place_id = CAST(:place_id AS uuid)")
         params["place_id"] = args.place_id
 
     if args.candidate_id:
-        where_parts.append("hidden_gem_candidate_id::text = :candidate_id")
+        where_parts.append("hidden_gem_candidate_id = CAST(:candidate_id AS uuid)")
         params["candidate_id"] = args.candidate_id
 
     if args.min_score is not None:
@@ -358,9 +425,9 @@ def load_candidate_detail(args: argparse.Namespace) -> pd.DataFrame:
     if df.empty:
         return df
 
-    df["is_selected"] = coerce_bool_series(df["is_selected"])
-    df["is_production_ready"] = coerce_bool_series(df["is_production_ready"])
-    df["is_rankable_candidate"] = coerce_bool_series(df["is_rankable_candidate"])
+    for bool_col in ["is_selected", "is_production_ready", "is_rankable_candidate"]:
+        if bool_col in df.columns:
+            df[bool_col] = coerce_bool_series(df[bool_col])
 
     numeric_cols = [
         "hidden_gem_selected_rank",
@@ -408,6 +475,7 @@ def load_mentions_for_candidates(
         return pd.DataFrame()
 
     schema = validate_schema_name(schema)
+    assert_view_columns(schema, "vw_ai_dish_mentions_with_sentiment", MENTIONS_COLUMNS)
     view_name = qname(schema, "vw_ai_dish_mentions_with_sentiment")
 
     top_pairs = selected_df[["place_id", "dish_id"]].drop_duplicates().head(max_candidates)
@@ -432,8 +500,8 @@ def load_mentions_for_candidates(
             context_sentence,
             review_text_raw
         FROM {view_name}
-        WHERE place_id = :place_id::uuid
-          AND dish_id = :dish_id::uuid
+        WHERE place_id = CAST(:place_id AS uuid)
+          AND dish_id = CAST(:dish_id AS uuid)
         ORDER BY
             sentiment_confidence DESC NULLS LAST,
             ABS(COALESCE(sentiment_score, 0)) DESC,
@@ -478,16 +546,23 @@ def top_global(df: pd.DataFrame, limit: int) -> pd.DataFrame:
     )
 
 
-def top_by_group(df: pd.DataFrame, group_col: str, per_group: int) -> pd.DataFrame:
-    if df.empty or group_col not in df.columns:
+def top_by_group(df: pd.DataFrame, group_cols: str | list[str], per_group: int) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+
+    if isinstance(group_cols, str):
+        group_cols = [group_cols]
+
+    available_group_cols = [col for col in group_cols if col in df.columns]
+    if not available_group_cols:
         return pd.DataFrame()
 
     ordered = df.sort_values(
-        [group_col, "hidden_gem_score", "hidden_gem_selected_rank"],
-        ascending=[True, False, True],
+        available_group_cols + ["hidden_gem_score", "hidden_gem_selected_rank"],
+        ascending=[True] * len(available_group_cols) + [False, True],
         na_position="last",
     ).copy()
-    ordered["rank_in_group"] = ordered.groupby(group_col, dropna=False).cumcount() + 1
+    ordered["rank_in_group"] = ordered.groupby(available_group_cols, dropna=False).cumcount() + 1
     return ordered[ordered["rank_in_group"] <= per_group].reset_index(drop=True)
 
 
@@ -526,6 +601,75 @@ def summarize_by_group(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
     return grouped.sort_values(["max_score", "selected_count"], ascending=[False, False]).reset_index(drop=True)
 
 
+def summarize_by_tier(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "hidden_gem_tier" not in df.columns:
+        return pd.DataFrame()
+
+    grouped = (
+        df.groupby("hidden_gem_tier", dropna=False)
+        .agg(
+            selected_count=("hidden_gem_candidate_id", "count"),
+            selected_places=("place_id", "nunique"),
+            selected_dishes=("dish_id", "nunique"),
+            selected_neighborhoods=("neighborhood_id", "nunique"),
+            selected_districts=("district_id", "nunique"),
+            avg_score=("hidden_gem_score", "mean"),
+            min_score=("hidden_gem_score", "min"),
+            max_score=("hidden_gem_score", "max"),
+            total_mentions=("mention_count", "sum"),
+            total_reviews=("review_count", "sum"),
+        )
+        .reset_index()
+    )
+    grouped["tier_order"] = grouped["hidden_gem_tier"].map(TIER_ORDER).fillna(0).astype(int)
+
+    for col in ["avg_score", "min_score", "max_score"]:
+        grouped[col] = grouped[col].round(5)
+
+    return grouped.sort_values("tier_order", ascending=False).drop(columns=["tier_order"]).reset_index(drop=True)
+
+
+def build_filter_options(df: pd.DataFrame) -> dict[str, Any]:
+    if df.empty:
+        return {
+            "districts": [],
+            "neighborhoods": [],
+            "dishes": [],
+            "tiers": [],
+            "score_range": None,
+        }
+
+    def unique_sorted(col: str) -> list[str]:
+        if col not in df.columns:
+            return []
+        return sorted([str(v) for v in df[col].dropna().unique().tolist()])
+
+    score_range = None
+    if "hidden_gem_score" in df.columns and df["hidden_gem_score"].notna().any():
+        score_range = {
+            "min": float(df["hidden_gem_score"].min()),
+            "max": float(df["hidden_gem_score"].max()),
+        }
+
+    neighborhoods = []
+    if {"district_name", "neighborhood_name"}.issubset(df.columns):
+        neighborhoods_df = (
+            df[["district_name", "neighborhood_name"]]
+            .dropna()
+            .drop_duplicates()
+            .sort_values(["district_name", "neighborhood_name"])
+        )
+        neighborhoods = df_to_records(neighborhoods_df)
+
+    return {
+        "districts": unique_sorted("district_name"),
+        "neighborhoods": neighborhoods,
+        "dishes": unique_sorted("dish_display_name"),
+        "tiers": unique_sorted("hidden_gem_tier"),
+        "score_range": score_range,
+    }
+
+
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
@@ -541,6 +685,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=30, help="Number of global top rows to show/save in the report.")
     parser.add_argument("--top-per-group", type=int, default=5, help="Rows per district/neighborhood/dish group.")
     parser.add_argument("--min-score", type=float, default=None, help="Optional minimum hidden_gem_score filter.")
+    parser.add_argument(
+        "--only-tier",
+        choices=sorted(TIER_ORDER.keys()),
+        default=None,
+        help="Optional exact hidden_gem_tier filter.",
+    )
 
     parser.add_argument("--district", default=None, help="Optional district name filter, partial match.")
     parser.add_argument("--neighborhood", default=None, help="Optional neighborhood name filter, partial match.")
@@ -562,15 +712,41 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mention-candidates", type=int, default=10, help="How many top candidates to fetch mention examples for.")
     parser.add_argument("--examples-per-candidate", type=int, default=3, help="Mention examples per selected candidate.")
 
+    parser.add_argument(
+        "--expected-selected",
+        type=int,
+        default=None,
+        help="Optional expected number of selected candidates after applying filters. Useful for full pilot validation.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Return a non-zero exit code if final checks are not all true.",
+    )
+
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--no-save", action="store_true", help="Do not save CSV/JSON artifacts.")
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    validate_schema_name(args.schema)
+    args.place_id = validate_uuid(args.place_id, "--place-id")
+    args.candidate_id = validate_uuid(args.candidate_id, "--candidate-id")
+
+    if args.limit <= 0:
+        raise ValueError("--limit must be greater than 0.")
+    if args.top_per_group <= 0:
+        raise ValueError("--top-per-group must be greater than 0.")
+    if args.mention_candidates <= 0:
+        raise ValueError("--mention-candidates must be greater than 0.")
+    if args.examples_per_candidate <= 0:
+        raise ValueError("--examples-per-candidate must be greater than 0.")
+
+    return args
 
 
 def main() -> int:
     args = parse_args()
-    validate_schema_name(args.schema)
 
     print_section("1. Loading Sevilla Hidden Gems candidate detail")
     detail_df = load_candidate_detail(args)
@@ -578,7 +754,7 @@ def main() -> int:
     if detail_df.empty:
         print("No se encontraron candidatos con los filtros indicados.")
         print("Revisa ranking_scope, artifact_ranking_scope, ranking_version o filtros de distrito/barrio/plato/local.")
-        return 1
+        return 2 if args.strict else 1
 
     selected_df = detail_df[detail_df["is_selected"]].copy()
     selected_df = selected_df.sort_values(
@@ -595,14 +771,16 @@ def main() -> int:
     print(f"Distritos seleccionados: {selected_df['district_id'].nunique() if not selected_df.empty else 0}")
 
     top_global_df = top_global(selected_df, args.limit)
-    top_district_df = top_by_group(selected_df, "district_name", args.top_per_group)
-    top_neighborhood_df = top_by_group(selected_df, "neighborhood_name", args.top_per_group)
-    top_dish_df = top_by_group(selected_df, "dish_display_name", args.top_per_group)
+    top_district_df = top_by_group(selected_df, ["district_name"], args.top_per_group)
+    top_neighborhood_df = top_by_group(selected_df, ["district_name", "neighborhood_name"], args.top_per_group)
+    top_dish_df = top_by_group(selected_df, ["dish_display_name"], args.top_per_group)
 
     district_summary_df = summarize_by_group(selected_df, ["district_name"])
     neighborhood_summary_df = summarize_by_group(selected_df, ["district_name", "neighborhood_name"])
     dish_summary_df = summarize_by_group(selected_df, ["dish_display_name", "dish_name"])
     place_summary_df = summarize_by_group(selected_df, ["place_id", "place_name", "address_text", "district_name", "neighborhood_name"])
+    tier_summary_df = summarize_by_tier(selected_df)
+    filter_options = build_filter_options(selected_df)
 
     print_section("2. Top global Sevilla pilot")
     print_table(top_global_df, TOP_DISPLAY_COLUMNS, args.limit)
@@ -635,9 +813,16 @@ def main() -> int:
         30,
     )
 
+    print_section("7. Resumen por tier")
+    print_table(
+        tier_summary_df,
+        ["hidden_gem_tier", "selected_count", "selected_places", "selected_dishes", "selected_neighborhoods", "avg_score", "min_score", "max_score"],
+        20,
+    )
+
     mentions_examples_df = pd.DataFrame()
     if args.include_mentions and not top_global_df.empty:
-        print_section("7. Mention examples for top candidates")
+        print_section("8. Mention examples for top candidates")
         mentions_examples_df = load_mentions_for_candidates(
             schema=args.schema,
             selected_df=top_global_df,
@@ -657,9 +842,14 @@ def main() -> int:
         else {}
     )
 
+    expected_selected_ok = True
+    if args.expected_selected is not None:
+        expected_selected_ok = int(len(selected_df)) == int(args.expected_selected)
+
     checks = {
         "has_candidates": bool(len(detail_df) > 0),
         "has_selected_candidates": bool(len(selected_df) > 0),
+        "expected_selected_matches": bool(expected_selected_ok),
         "score_in_0_100": bool(selected_df["hidden_gem_score"].between(0, 100).all()) if not selected_df.empty else True,
         "selected_have_place": bool(selected_df["place_id"].notna().all()) if not selected_df.empty else True,
         "selected_have_dish": bool(selected_df["dish_id"].notna().all()) if not selected_df.empty else True,
@@ -669,6 +859,10 @@ def main() -> int:
         if "artifact_ranking_scope" in detail_df.columns else False,
         "db_ranking_scope_ok": bool((detail_df["ranking_scope"] == args.db_ranking_scope).all())
         if "ranking_scope" in detail_df.columns else False,
+        "has_district_summary": bool(len(district_summary_df) > 0),
+        "has_neighborhood_summary": bool(len(neighborhood_summary_df) > 0),
+        "has_dish_summary": bool(len(dish_summary_df) > 0),
+        "has_tier_summary": bool(len(tier_summary_df) > 0),
     }
 
     report = {
@@ -686,7 +880,9 @@ def main() -> int:
             "place_id": args.place_id,
             "candidate_id": args.candidate_id,
             "min_score": args.min_score,
+            "only_tier": args.only_tier,
             "include_not_selected": args.include_not_selected,
+            "expected_selected": args.expected_selected,
         },
         "counts": {
             "detail_rows": int(len(detail_df)),
@@ -698,11 +894,13 @@ def main() -> int:
             "tier_counts": tier_counts,
         },
         "checks": checks,
+        "filter_options": filter_options,
         "top_global": df_to_records(top_global_df, args.limit),
         "district_summary": df_to_records(district_summary_df, 50),
         "top_by_district": df_to_records(top_district_df, 100),
-        "top_by_neighborhood": df_to_records(top_neighborhood_df, 150),
+        "top_by_neighborhood": df_to_records(top_neighborhood_df, 200),
         "top_by_dish": df_to_records(top_dish_df, 100),
+        "tier_summary": df_to_records(tier_summary_df, 20),
     }
 
     if args.include_mentions:
@@ -722,27 +920,36 @@ def main() -> int:
         save_csv(neighborhood_summary_df, output_dir / "sevilla_demo_neighborhood_summary.csv")
         save_csv(dish_summary_df, output_dir / "sevilla_demo_dish_summary.csv")
         save_csv(place_summary_df, output_dir / "sevilla_demo_place_summary.csv")
+        save_csv(tier_summary_df, output_dir / "sevilla_demo_tier_summary.csv")
+        save_json(filter_options, output_dir / "sevilla_demo_filter_options.json")
 
         if args.include_mentions:
             save_csv(mentions_examples_df, output_dir / "sevilla_demo_mention_examples.csv")
 
         save_json(report, output_dir / "sevilla_hidden_gems_query_demo_report.json")
 
-        print_section("8. Saved artifacts")
-        print(f"Output dir: {output_dir}")
-        print("- sevilla_demo_candidate_detail.csv")
-        print("- sevilla_demo_selected_candidates.csv")
-        print("- sevilla_demo_top_global.csv")
-        print("- sevilla_demo_top_by_district.csv")
-        print("- sevilla_demo_top_by_neighborhood.csv")
-        print("- sevilla_demo_top_by_dish.csv")
-        print("- sevilla_demo_district_summary.csv")
-        print("- sevilla_demo_neighborhood_summary.csv")
-        print("- sevilla_demo_dish_summary.csv")
-        print("- sevilla_demo_place_summary.csv")
+        saved_files = [
+            "sevilla_demo_candidate_detail.csv",
+            "sevilla_demo_selected_candidates.csv",
+            "sevilla_demo_top_global.csv",
+            "sevilla_demo_top_by_district.csv",
+            "sevilla_demo_top_by_neighborhood.csv",
+            "sevilla_demo_top_by_dish.csv",
+            "sevilla_demo_district_summary.csv",
+            "sevilla_demo_neighborhood_summary.csv",
+            "sevilla_demo_dish_summary.csv",
+            "sevilla_demo_place_summary.csv",
+            "sevilla_demo_tier_summary.csv",
+            "sevilla_demo_filter_options.json",
+            "sevilla_hidden_gems_query_demo_report.json",
+        ]
         if args.include_mentions:
-            print("- sevilla_demo_mention_examples.csv")
-        print("- sevilla_hidden_gems_query_demo_report.json")
+            saved_files.insert(-1, "sevilla_demo_mention_examples.csv")
+
+        print_section("9. Saved artifacts")
+        print(f"Output dir: {output_dir}")
+        for file_name in saved_files:
+            print(f"- {file_name}")
 
     print_section("Final checks")
     print(json.dumps(to_builtin(checks), indent=2, ensure_ascii=False, allow_nan=False))
@@ -752,7 +959,7 @@ def main() -> int:
         return 0
 
     print("\nDemo query layer completed with warnings. Review checks above.")
-    return 0
+    return 2 if args.strict else 0
 
 
 if __name__ == "__main__":
