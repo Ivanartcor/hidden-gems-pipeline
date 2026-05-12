@@ -1,129 +1,118 @@
-# 09. Operación del dashboard Hidden Gems Sevilla
+# 09. Dashboard operations
 
-## 1. Propósito del documento
+## 1. Propósito
 
-Este documento describe cómo operar el dashboard del piloto IA de **Hidden Gems Sevilla**.
+Este documento describe cómo operar los dashboards Streamlit de Hidden Gems.
 
-El dashboard permite visualizar los resultados del ranking `sevilla_pilot` generado a partir de reviews reales de Google Places, procesadas por el flujo IA del proyecto y cargadas en PostgreSQL.
+Los dashboards no sustituyen al pipeline ni a PostgreSQL. Son una capa de visualización para explorar resultados ya generados, cargados, validados y exportados.
 
-Su función es servir como capa de presentación para:
+Actualmente existen dos dashboards:
 
 ```text
-- demostrar el valor del MVP;
-- explorar candidatos Hidden Gems;
-- revisar resultados por distrito, barrio, plato y local;
-- inspeccionar explicaciones del ranking;
-- detectar errores o mejoras necesarias en la IA;
-- preparar presentaciones técnicas o académicas.
+1. Dashboard Sevilla Pilot
+2. Dashboard Yelp Prototype
+```
+
+La lógica general es:
+
+```text
+PostgreSQL / vistas IA
+→ script de exportación
+→ CSV/JSON limpios en data/artifacts
+→ Streamlit dashboard
 ```
 
 ---
 
-## 2. Relación con el flujo general
+## 2. Dashboards disponibles
 
-El dashboard es la última capa del flujo operativo actual:
+## 2.1. Sevilla Pilot
 
-```text
-Google Places Reviews
-→ hidden_gems.review
-→ export_reviews_for_ai.py
-→ notebooks IA Sevilla 12-17
-→ load_sevilla_ai_pilot_outputs.py
-→ check_sevilla_ai_pilot_loaded.py
-→ export_sevilla_dashboard_data.py
-→ dashboard/streamlit_app.py
-```
-
-No sustituye a PostgreSQL ni a los checks. El dashboard consume datos ya preparados por un exportador.
-
----
-
-## 3. Archivos implicados
-
-### Script de dashboard
+Archivo:
 
 ```text
 dashboard/streamlit_app.py
 ```
 
-### Documentación rápida
-
-```text
-dashboard/README.md
-```
-
-### Exportador de datos
-
-```text
-scripts/export_sevilla_dashboard_data.py
-```
-
-### Query demo relacionado
-
-```text
-scripts/query_sevilla_hidden_gems_demo.py
-```
-
-### Carpeta de datos generada
+Datos esperados:
 
 ```text
 data/artifacts/ai/sevilla/dashboard/
 ```
 
+Objetivo:
+
+```text
+Mostrar el piloto IA local de Sevilla basado en Google Places Reviews.
+```
+
+Estado:
+
+```text
+artifact_ranking_scope = sevilla_pilot
+db_ranking_scope = other
+is_production_ready = false
+```
+
+Este dashboard es el más cercano al producto final de Hidden Gems, porque trabaja con locales reales de Sevilla, barrios, distritos y reseñas reales de Google Places.
+
 ---
 
-## 4. Dependencias
+## 2.2. Yelp Prototype
 
-El dashboard requiere:
+Archivo:
+
+```text
+dashboard/streamlit_yelp_app.py
+```
+
+Datos esperados:
+
+```text
+data/artifacts/ai/yelp/dashboard/
+```
+
+Objetivo:
+
+```text
+Mostrar el prototipo IA/benchmark construido sobre Yelp Open Dataset.
+```
+
+Estado:
+
+```text
+ranking_scope = yelp_prototype
+ranking_version = hidden_gems_ranking_v1
+is_production_ready = false
+```
+
+Este dashboard no representa el producto final de Sevilla. Sirve para demostrar que la cadena IA se validó sobre un corpus amplio.
+
+---
+
+## 3. Requisitos
+
+Los dashboards requieren tener instalado el entorno del proyecto:
+
+```powershell
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Dependencias principales:
 
 ```text
 streamlit
 plotly
 pandas
-```
-
-Estas dependencias deben estar en `requirements.txt`.
-
-Si hace falta instalarlas manualmente:
-
-```powershell
-pip install streamlit plotly pandas
+sqlalchemy
 ```
 
 ---
 
-## 5. Preparación previa
+## 4. Generación de datos del dashboard Sevilla
 
-Antes de ejecutar el dashboard, el piloto IA Sevilla debe estar cargado y validado en PostgreSQL.
-
-Ejecutar:
-
-```powershell
-python -m scripts.check_sevilla_ai_pilot_loaded `
-  --report-path data/artifacts/ai/sevilla/check_sevilla_ai_pilot_loaded_report.json
-```
-
-Resultado esperado:
-
-```text
-ready_for_sevilla_pilot_queries = true
-errors = []
-warnings = []
-```
-
-Si este check no pasa, no se debe generar el dashboard todavía.
-
----
-
-## 6. Exportación de datos para el dashboard
-
-El dashboard no consulta directamente la base de datos. Lee CSV y JSON generados por:
-
-```text
-scripts/export_sevilla_dashboard_data.py
-```
-
-Comando recomendado completo:
+Comando completo recomendado:
 
 ```powershell
 python -m scripts.export_sevilla_dashboard_data `
@@ -138,54 +127,18 @@ python -m scripts.export_sevilla_dashboard_data `
   --strict
 ```
 
-Este comando exporta todos los candidatos seleccionados, los resúmenes agregados y ejemplos de menciones/reseñas para la vista de detalle.
+Comando sin reseñas completas:
 
----
-
-## 7. Archivos exportados
-
-El exportador debe generar:
-
-```text
-dashboard_metadata.json
-kpi_summary.json
-candidates_detail.csv
-candidates_all.csv
-top_global.csv
-top_by_district.csv
-top_by_neighborhood.csv
-top_by_dish.csv
-district_summary.csv
-neighborhood_summary.csv
-dish_summary.csv
-place_summary.csv
-tier_summary.csv
-quality_summary.csv
-filter_options.json
-data_contract.json
-dashboard_export_summary.json
-mention_examples.csv
+```powershell
+python -m scripts.export_sevilla_dashboard_data `
+  --output-dir data/artifacts/ai/sevilla/dashboard `
+  --expected-selected 150 `
+  --top-global-limit 9999 `
+  --top-per-group 9999 `
+  --strict
 ```
 
-El archivo más importante para la tabla principal es:
-
-```text
-candidates_detail.csv
-```
-
-El archivo más delicado es:
-
-```text
-mention_examples.csv
-```
-
-porque puede incluir reseñas completas si se usa `--include-full-review-text`.
-
----
-
-## 8. Checks del exportador
-
-El exportador debe terminar con checks en `true`:
+Checks esperados:
 
 ```text
 has_candidates = true
@@ -203,285 +156,360 @@ artifact_scope_ok = true
 db_ranking_scope_ok = true
 ```
 
-Conteos esperados del piloto actual:
+---
+
+## 5. Generación de datos del dashboard Yelp
+
+Comando completo recomendado:
+
+```powershell
+python -m scripts.export_yelp_dashboard_data `
+  --output-dir data/artifacts/ai/yelp/dashboard `
+  --expected-selected 622 `
+  --top-global-limit 9999 `
+  --top-per-group 9999 `
+  --include-mentions `
+  --mention-candidates 100 `
+  --examples-per-candidate 3 `
+  --include-full-review-text `
+  --strict
+```
+
+Comando sin reseñas completas:
+
+```powershell
+python -m scripts.export_yelp_dashboard_data `
+  --output-dir data/artifacts/ai/yelp/dashboard `
+  --expected-selected 622 `
+  --top-global-limit 9999 `
+  --top-per-group 9999 `
+  --strict
+```
+
+Conteos validados del export actual:
 
 ```text
-all_candidates = 256
-selected_candidates = 150
-selected_places = 122
-selected_dishes = 38
-selected_neighborhoods = 55
-selected_districts = 11
+all_candidates = 622
+selected_candidates = 622
+selected_places = 430
+selected_dishes = 69
+selected_cities = 140
+selected_states = 39
+mention_examples_rows = 300
+```
+
+Checks esperados:
+
+```text
+has_candidates = true
+has_selected_candidates = true
+expected_selected_matches = true
+score_in_0_100 = true
+selected_have_place = true
+selected_have_dish = true
+global_ranks_are_unique = true
+all_selected_are_not_production_ready = true
+ranking_scope_ok = true
 ```
 
 ---
 
-## 9. Ejecución del dashboard
+## 6. Ejecución de dashboards
 
-Desde la raíz del repositorio:
+## 6.1. Ejecutar Sevilla Pilot
 
 ```powershell
 streamlit run dashboard/streamlit_app.py
 ```
 
-Streamlit abrirá una URL local, normalmente:
-
-```text
-http://localhost:8501
-```
-
----
-
-## 10. Secciones funcionales del dashboard
-
-El dashboard está organizado para presentar el piloto completo:
-
-```text
-1. Resumen ejecutivo.
-2. KPIs principales.
-3. Top Hidden Gems global.
-4. Filtros por distrito, barrio, plato, tier, evidencia y score.
-5. Tabla exploradora de candidatos.
-6. Mapa de candidatos.
-7. Análisis territorial por distrito y barrio.
-8. Análisis por plato.
-9. Análisis por local.
-10. Detalle de candidato.
-11. Componentes del score.
-12. Penalizaciones.
-13. Menciones y reseñas asociadas.
-14. Reseña completa opcional en vista de detalle.
-15. Calidad, checks y limitaciones.
-```
-
----
-
-## 11. Uso recomendado en presentación
-
-Para presentar el proyecto, el orden recomendado es:
-
-```text
-1. Mostrar KPIs generales.
-2. Explicar que el ranking es piloto y no producción.
-3. Enseñar el top global.
-4. Filtrar por distrito o barrio.
-5. Buscar un plato concreto.
-6. Abrir el detalle de un candidato.
-7. Mostrar componentes del score.
-8. Mostrar una reseña/mención solo si aporta explicación.
-9. Cerrar con calidad y limitaciones.
-```
-
-Esto demuestra tanto la parte visual como la trazabilidad técnica del sistema.
-
----
-
-## 12. Tratamiento de reseñas completas
-
-El dashboard permite mostrar reseñas completas únicamente en una vista de detalle.
-
-Reglas:
-
-```text
-- No mostrar reseñas completas en la vista principal.
-- No mostrar reseñas completas en tablas globales.
-- Usarlas solo bajo un desplegable o sección de detalle.
-- No incluir capturas públicas con textos completos si no es necesario.
-- No subir a GitHub archivos que contengan reviews completas.
-```
-
-Si no se quieren exportar reseñas completas:
+## 6.2. Ejecutar Yelp Prototype
 
 ```powershell
-python -m scripts.export_sevilla_dashboard_data `
-  --output-dir data/artifacts/ai/sevilla/dashboard `
-  --expected-selected 150 `
-  --include-mentions `
-  --strict
+streamlit run dashboard/streamlit_yelp_app.py
 ```
-
-Sin `--include-full-review-text`, el dashboard tendrá menos información textual sensible.
 
 ---
 
-## 13. Qué no subir a Git
+## 7. Archivos generados por los exportadores
 
-No versionar:
+## 7.1. Sevilla
+
+```text
+data/artifacts/ai/sevilla/dashboard/
+├── dashboard_metadata.json
+├── kpi_summary.json
+├── candidates_detail.csv
+├── candidates_all.csv
+├── top_global.csv
+├── top_by_district.csv
+├── top_by_neighborhood.csv
+├── top_by_dish.csv
+├── district_summary.csv
+├── neighborhood_summary.csv
+├── dish_summary.csv
+├── place_summary.csv
+├── tier_summary.csv
+├── quality_summary.csv
+├── filter_options.json
+├── data_contract.json
+├── dashboard_export_summary.json
+└── mention_examples.csv
+```
+
+## 7.2. Yelp
+
+```text
+data/artifacts/ai/yelp/dashboard/
+├── dashboard_metadata.json
+├── kpi_summary.json
+├── candidates_detail.csv
+├── candidates_all.csv
+├── top_global.csv
+├── top_by_city.csv
+├── top_by_state.csv
+├── top_by_dish.csv
+├── city_summary.csv
+├── state_summary.csv
+├── dish_summary.csv
+├── place_summary.csv
+├── tier_summary.csv
+├── quality_summary.csv
+├── filter_options.json
+├── data_contract.json
+├── dashboard_export_summary.json
+└── mention_examples.csv
+```
+
+---
+
+## 8. Uso de reseñas completas
+
+Los dashboards pueden mostrar reseñas completas en una vista de detalle si el exportador se ejecutó con:
+
+```powershell
+--include-mentions --include-full-review-text
+```
+
+Regla operativa:
+
+```text
+Las reseñas completas no deben aparecer en la vista principal.
+Solo deben mostrarse bajo un desplegable o detalle opcional.
+```
+
+Motivo:
+
+```text
+- evitar saturar la interfaz;
+- mantener una presentación limpia;
+- reducir exposición innecesaria de texto completo;
+- dejar claro que es contenido de apoyo/auditoría.
+```
+
+---
+
+## 9. Qué no subir a Git
+
+No versionar datos exportados del dashboard:
 
 ```text
 data/artifacts/ai/sevilla/dashboard/*.csv
 data/artifacts/ai/sevilla/dashboard/*.json
+data/artifacts/ai/yelp/dashboard/*.csv
+data/artifacts/ai/yelp/dashboard/*.json
 ```
 
-Especialmente:
+Especialmente si contienen reseñas completas:
 
 ```text
-data/artifacts/ai/sevilla/dashboard/mention_examples.csv
+mention_examples.csv
 ```
-
-cuando contiene reseñas completas.
 
 Sí versionar:
 
 ```text
 dashboard/streamlit_app.py
+dashboard/streamlit_yelp_app.py
 dashboard/README.md
 scripts/export_sevilla_dashboard_data.py
-scripts/query_sevilla_hidden_gems_demo.py
+scripts/export_yelp_dashboard_data.py
 docs/08_operations/09_dashboard_operations.md
 ```
 
 ---
 
-## 14. Solución de problemas frecuentes
+## 10. Secciones principales de los dashboards
 
-### Error: no aparecen datos
-
-Comprobar que existe:
+## 10.1. Sevilla Pilot
 
 ```text
-data/artifacts/ai/sevilla/dashboard/candidates_detail.csv
+1. Resumen ejecutivo
+2. KPIs principales
+3. Top Hidden Gems Sevilla
+4. Filtros por distrito, barrio, plato, local, tier y score
+5. Mapa de candidatos
+6. Exploración territorial
+7. Exploración por plato
+8. Exploración por local
+9. Detalle de candidato
+10. Menciones y reseñas asociadas
+11. Calidad y limitaciones
 ```
 
-Regenerar datos con:
+## 10.2. Yelp Prototype
 
-```powershell
-python -m scripts.export_sevilla_dashboard_data `
-  --output-dir data/artifacts/ai/sevilla/dashboard `
-  --expected-selected 150 `
-  --strict
+```text
+1. Resumen del benchmark IA
+2. KPIs principales
+3. Top Hidden Gems Yelp
+4. Filtros por estado, ciudad, plato, local, tier y score
+5. Mapa de candidatos
+6. Exploración por ciudad y estado
+7. Exploración por plato
+8. Exploración por local
+9. Detalle de candidato
+10. Menciones y reseñas asociadas
+11. Calidad y limitaciones
 ```
 
 ---
 
-### Error: faltan columnas
+## 11. Interpretación correcta
 
-Puede ocurrir si el dashboard espera un contrato más reciente que el exportador.
+## 11.1. Sevilla
 
-Solución:
-
-```text
-1. Actualizar scripts/export_sevilla_dashboard_data.py.
-2. Regenerar data/artifacts/ai/sevilla/dashboard/.
-3. Reiniciar Streamlit.
-```
-
----
-
-### Error con slider de Streamlit
-
-Streamlit exige que `value`, `min_value` y `max_value` tengan el mismo tipo.
-
-Solución aplicada:
-
-```python
-value=float(default_value)
-min_value=0.0
-max_value=100.0
-step=1.0
-```
-
----
-
-### El mapa no muestra puntos
-
-Comprobar:
+Debe presentarse como:
 
 ```text
-selected_have_coordinates = true
+Piloto IA local sobre Sevilla.
 ```
 
-en `dashboard_export_summary.json`.
-
-También revisar que las columnas existen:
+No debe presentarse como:
 
 ```text
-latitude
-longitude
+Ranking productivo final.
 ```
 
----
-
-### Reseñas completas visibles donde no deberían
-
-Revisar el dashboard y asegurar que `review_text_raw` solo se usa dentro de secciones de detalle.
-
-Si se quiere evitar completamente:
+Motivo:
 
 ```text
-No ejecutar el exportador con --include-full-review-text.
-```
-
----
-
-## 15. Regeneración del dashboard tras cambios
-
-Cuando se recalcule el ranking o se carguen nuevos datos:
-
-```text
-1. Ejecutar check de carga Sevilla.
-2. Regenerar export de dashboard.
-3. Reiniciar Streamlit.
-4. Revisar KPIs y checks.
-```
-
-Comandos:
-
-```powershell
-python -m scripts.check_sevilla_ai_pilot_loaded `
-  --report-path data/artifacts/ai/sevilla/check_sevilla_ai_pilot_loaded_report.json
-
-python -m scripts.export_sevilla_dashboard_data `
-  --output-dir data/artifacts/ai/sevilla/dashboard `
-  --expected-selected 150 `
-  --top-global-limit 9999 `
-  --top-per-group 9999 `
-  --include-mentions `
-  --mention-candidates 150 `
-  --examples-per-candidate 5 `
-  --include-full-review-text `
-  --strict
-
-streamlit run dashboard/streamlit_app.py
-```
-
----
-
-## 16. Estado actual
-
-El dashboard queda operativo sobre el piloto actual con:
-
-```text
-256 candidatos puntuados
-150 candidatos seleccionados
-122 locales seleccionados
-38 platos seleccionados
-55 barrios cubiertos
-11 distritos cubiertos
-413 ejemplos de menciones/reseñas exportados para detalle
-```
-
-El ranking se mantiene como:
-
-```text
-artifact_ranking_scope = sevilla_pilot
-db_ranking_scope = other
 is_production_ready = false
 ```
 
 ---
 
-## 17. Próximos pasos
+## 11.2. Yelp
 
-Una vez validado el dashboard, el siguiente uso natural es análisis de calidad:
+Debe presentarse como:
 
 ```text
-- detectar falsos positivos;
-- revisar platos mal normalizados;
-- localizar barrios con poca evidencia;
-- revisar candidatos con baja evidencia;
-- ajustar reglas y diccionario español;
-- decidir si merece la pena entrenar o adaptar modelos IA.
+Benchmark IA / prototipo a gran escala.
 ```
 
-El dashboard no solo es una capa visual. También es una herramienta para decidir las siguientes mejoras del sistema.
+No debe presentarse como:
+
+```text
+Producto local de Sevilla.
+```
+
+Motivo:
+
+```text
+ranking_scope = yelp_prototype
+is_production_ready = false
+```
+
+---
+
+## 12. Problemas frecuentes
+
+### 12.1. Faltan archivos CSV o JSON
+
+Regenerar el export correspondiente.
+
+Sevilla:
+
+```powershell
+python -m scripts.export_sevilla_dashboard_data --output-dir data/artifacts/ai/sevilla/dashboard --expected-selected 150 --strict
+```
+
+Yelp:
+
+```powershell
+python -m scripts.export_yelp_dashboard_data --output-dir data/artifacts/ai/yelp/dashboard --expected-selected 622 --strict
+```
+
+---
+
+### 12.2. Streamlit no encuentra dependencias
+
+```powershell
+pip install -r requirements.txt
+```
+
+---
+
+### 12.3. Error `StreamlitDuplicateElementId`
+
+Este error aparece cuando dos gráficos tienen el mismo identificador automático.
+
+Solución:
+
+```text
+usar la versión actualizada del dashboard donde cada st.plotly_chart tiene key única.
+```
+
+---
+
+### 12.4. Error de slider por tipos int/float
+
+Streamlit exige que `value`, `min_value` y `max_value` tengan el mismo tipo.
+
+Solución:
+
+```text
+usar value como float cuando min_value y max_value son float.
+```
+
+---
+
+## 13. Flujo recomendado para regenerar dashboard
+
+Cuando cambien datos, ranking o scripts:
+
+```text
+1. Ejecutar pipeline o loader correspondiente.
+2. Ejecutar checks de base de datos.
+3. Ejecutar exportador de dashboard.
+4. Revisar dashboard_export_summary.json.
+5. Ejecutar Streamlit.
+6. Revisar visualmente resultados.
+```
+
+---
+
+## 14. Estado actual
+
+```text
+[OK] Dashboard Sevilla creado y funcionando
+[OK] Export Sevilla validado
+[OK] Dashboard Yelp creado y funcionando
+[OK] Export Yelp validado
+[OK] Requirements actualizados
+[OK] README de dashboard creado
+[OK] Operaciones de dashboard documentadas
+```
+
+---
+
+## 15. Siguientes mejoras posibles
+
+```text
+1. Crear app multipágina de Streamlit con Sevilla y Yelp en una sola interfaz.
+2. Añadir modo comparativo Sevilla vs Yelp.
+3. Añadir export a HTML/PDF para presentación.
+4. Añadir capturas para memoria técnica.
+5. Crear versión ligera sin reseñas completas para compartir.
+6. Crear API sobre los mismos datos del dashboard.
+```
+
