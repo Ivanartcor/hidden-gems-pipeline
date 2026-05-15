@@ -7,3 +7,4 @@ data/raw/*
 data/staging/*
 data/artifacts/*
 data/external/*
+models/*
