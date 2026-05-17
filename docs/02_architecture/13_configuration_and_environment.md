@@ -10,8 +10,10 @@ La configuración en Hidden Gems tiene un papel central porque el sistema depend
 - claves de APIs;
 - comportamiento operativo del entorno;
 - rutas de artefactos de IA;
-- parámetros de ejecución de loaders, checks y demos;
-- futuras rutas de dashboard o capa API.
+- rutas de modelos locales;
+- parámetros de ejecución de loaders, checks, demos y dashboards;
+- dependencias de entrenamiento/inferencia IA;
+- futura capa API o despliegue.
 
 Por ello, la configuración está desacoplada de la lógica de negocio y centralizada en puntos controlados.
 
@@ -21,7 +23,7 @@ El objetivo es que el proyecto pueda ejecutarse de forma consistente en distinto
 
 ## 2. Enfoque general
 
-La configuración del proyecto se apoya en dos piezas principales.
+La configuración se apoya en cuatro piezas principales.
 
 ### 2.1. Variables de entorno
 
@@ -31,12 +33,20 @@ Se definen en `.env` y se documentan en `.env.example`.
 
 Se centraliza en `src/config/settings.py`, que carga y tipa esas variables mediante `pydantic-settings`.
 
-De esta forma:
+### 2.3. Argumentos CLI
 
-- el código no depende de valores hardcodeados;
-- la configuración queda validada;
-- el entorno puede cambiar sin tocar la lógica del pipeline;
-- los scripts operativos comparten una misma conexión y rutas base.
+Los scripts operativos aceptan rutas y parámetros por argumento. Esto evita hardcodear inputs/outputs y facilita repetir ejecuciones.
+
+### 2.4. Artefactos versionados por carpeta
+
+La fase IA y dashboard usa carpetas explícitas para separar versiones:
+
+```text
+data/artifacts/ai/sevilla/model_inference/
+data/artifacts/ai/sevilla/dashboard/
+data/artifacts/ai/sevilla/dashboard_v2/
+models/
+```
 
 ---
 
@@ -44,39 +54,37 @@ De esta forma:
 
 ## 3.1. `.env`
 
-Contiene los valores reales del entorno local o de ejecución.
+Contiene valores reales del entorno local o de ejecución.
 
-Ejemplos de uso:
+Ejemplos:
 
 - credenciales de PostgreSQL;
-- rutas base de datos o artefactos;
+- rutas base;
 - endpoints fuente;
 - claves de servicios externos;
 - configuración de Google Places.
 
-Este archivo no debe versionarse en Git si contiene datos sensibles.
+Este archivo no debe versionarse si contiene datos sensibles.
 
 ---
 
 ## 3.2. `.env.example`
 
-Sirve como plantilla pública del entorno necesario para arrancar el proyecto.
+Plantilla pública del entorno necesario para arrancar el proyecto.
 
 Su función es:
 
 - documentar qué variables necesita el sistema;
-- facilitar la preparación del entorno en otras máquinas;
-- evitar ambigüedad sobre qué configuración es necesaria.
+- facilitar preparación en otras máquinas;
+- evitar ambigüedad sobre la configuración necesaria.
 
 ---
 
 ## 3.3. `src/config/settings.py`
 
-Es el punto central de lectura y validación de configuración.
+Punto central de lectura y validación de configuración.
 
-Desde aquí se exponen los parámetros comunes que usa el resto del sistema.
-
-### Ventajas de este enfoque
+Ventajas:
 
 - tipado de parámetros;
 - valores por defecto razonables;
@@ -87,9 +95,9 @@ Desde aquí se exponen los parámetros comunes que usa el resto del sistema.
 
 ## 3.4. `src/config/source_registry.yaml`
 
-Este archivo permite registrar metadatos de fuentes de forma declarativa.
+Permite registrar metadatos de fuentes de forma declarativa.
 
-Su objetivo es desacoplar parte de la definición de fuentes de la lógica del código y dejar preparada una gestión más escalable del ecosistema de conectores.
+Su objetivo es desacoplar parte de la definición de fuentes de la lógica del código.
 
 ---
 
@@ -121,7 +129,10 @@ A nivel actual, el proyecto contempla configuración para los siguientes bloques
 - `data/artifacts`;
 - `data/external`;
 - `data/artifacts/ai`;
-- `data/artifacts/ai/sevilla`.
+- `data/artifacts/ai/sevilla`;
+- `data/artifacts/ai/sevilla/model_inference`;
+- `data/artifacts/ai/sevilla/dashboard`;
+- `data/artifacts/ai/sevilla/dashboard_v2`.
 
 ### 4.4. Fuentes externas
 
@@ -135,11 +146,24 @@ A nivel actual, el proyecto contempla configuración para los siguientes bloques
 - creación automática de carpetas;
 - control de logs en artefactos.
 
+### 4.6. Modelos IA locales
+
+Los modelos entrenados se guardan localmente, normalmente en:
+
+```text
+models/
+├── sevilla_dish_ner_beto_v1_2/
+├── sevilla_dish_normalization_reranker_beto_v1/
+└── sevilla_mention_sentiment_absa_beto_v1/
+```
+
+Esta carpeta debe estar en `.gitignore`.
+
 ---
 
 ## 5. Entorno de ejecución
 
-El proyecto está pensado para ejecutarse en un entorno Python local bien controlado.
+El proyecto está pensado para ejecutarse en un entorno Python local controlado.
 
 ### Requisitos principales
 
@@ -147,8 +171,9 @@ El proyecto está pensado para ejecutarse en un entorno Python local bien contro
 - PostgreSQL;
 - extensión PostGIS;
 - dependencias instaladas desde `requirements.txt`;
-- espacio en disco suficiente para datasets y artefactos;
-- conexión de red para fuentes API cuando aplique.
+- espacio en disco suficiente para datasets, artefactos y modelos;
+- conexión de red para fuentes API cuando aplique;
+- GPU opcional para entrenamiento en notebooks/Kaggle, no obligatoria para ejecución local.
 
 ---
 
@@ -158,7 +183,7 @@ El proyecto está pensado para ejecutarse en un entorno Python local bien contro
 
 En Windows:
 
-```bash
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 ```
@@ -174,11 +199,24 @@ source .venv/bin/activate
 
 ## 6.2. Instalar dependencias
 
-```bash
+```powershell
 pip install -r requirements.txt
 ```
 
-Esto deja preparado el entorno Python del proyecto.
+Dependencias relevantes:
+
+- `pandas`;
+- `sqlalchemy`;
+- `psycopg2-binary`;
+- `pydantic`;
+- `pydantic-settings`;
+- `requests` / `httpx`;
+- `rapidfuzz`;
+- `streamlit`;
+- `plotly`;
+- `torch`;
+- `transformers`;
+- `datasets`, si se reproducen entrenamientos o notebooks.
 
 ---
 
@@ -199,9 +237,9 @@ A partir de `.env.example`, se debe crear `.env` y completar al menos:
 
 ## 6.4. Verificar conexión y schema
 
-Antes de ejecutar verticales completas, conviene comprobar:
+Antes de ejecutar verticales completas:
 
-```bash
+```powershell
 python -m scripts.check_db_connection
 python -m scripts.check_schema
 ```
@@ -212,9 +250,9 @@ Esto permite validar que el entorno base está listo.
 
 ## 7. Entorno de datos
 
-Además del entorno Python y la base de datos, el proyecto depende de una estructura local de datos bien organizada.
+El proyecto depende de una estructura local de datos organizada.
 
-### Capas actuales
+Capas principales:
 
 - `data/raw/`;
 - `data/staging/`;
@@ -224,16 +262,15 @@ Además del entorno Python y la base de datos, el proyecto depende de una estruc
 - `data/artifacts/ai/`;
 - `data/artifacts/ai/sevilla/`.
 
-Estas rutas pueden mantenerse con valores por defecto o parametrizarse desde configuración.
+El pipeline no solo usa base de datos: también genera y consume artefactos en disco.
 
-### Importancia
+Por eso el entorno contempla dos dimensiones:
 
-El pipeline no solo usa la base de datos: también genera y consume artefactos en disco.
-
-Por eso el entorno de ejecución debe contemplar ambas dimensiones:
-
-- persistencia en PostgreSQL;
-- persistencia en filesystem.
+```text
+PostgreSQL/PostGIS
++
+filesystem de artefactos
+```
 
 ---
 
@@ -243,7 +280,7 @@ Por eso el entorno de ejecución debe contemplar ambas dimensiones:
 
 Los conectores necesitan parámetros específicos de fuente.
 
-### Ejemplos
+Ejemplos:
 
 - Overpass → `overpass_base_url`;
 - Google Places → `google_maps_api_key`;
@@ -253,25 +290,25 @@ Los conectores necesitan parámetros específicos de fuente.
 
 ## 8.2. Configuración de base de datos
 
-La capa DB necesita parámetros robustos y estables porque toda la persistencia canónica y la capa IA dependen de ella.
+Toda la persistencia canónica e IA depende de la conexión a PostgreSQL/PostGIS.
 
-### Elementos clave
+Elementos clave:
 
 - URL de conexión;
 - schema objetivo;
 - engine SQLAlchemy;
 - validación de conexión;
-- puerto local, en este proyecto habitualmente `5433`.
+- puerto local, habitualmente `5433`.
 
-La conexión no se dispersa por el proyecto, sino que se centraliza en `src/db/database.py`.
+La conexión se centraliza en `src/db/database.py`.
 
 ---
 
 ## 8.3. Configuración de logging
 
-El proyecto dispone de configuración de logging centralizada.
+El proyecto dispone de logging centralizado.
 
-### Función actual
+Función:
 
 - generar logs de ejecución;
 - escribir en `data/artifacts/logs/pipeline.log`;
@@ -295,7 +332,7 @@ data/artifacts/ai/checks/
 data/artifacts/ai/query_demo/
 ```
 
-Ejemplos específicos del piloto Sevilla:
+Ejemplos específicos Sevilla v1/v2:
 
 ```text
 data/artifacts/ai/sevilla/exploration/
@@ -305,11 +342,55 @@ data/artifacts/ai/sevilla/sentiment/
 data/artifacts/ai/sevilla/aggregation/
 data/artifacts/ai/sevilla/ranking/
 data/artifacts/ai/sevilla/query_demo/
+data/artifacts/ai/sevilla/model_inference/
+data/artifacts/ai/sevilla/dashboard/
+data/artifacts/ai/sevilla/dashboard_v2/
 ```
 
-En general, estas rutas se pasan por argumentos CLI, no por variables globales fijas.
+En general, estas rutas se pasan por argumentos CLI.
 
-Esto permite reejecutar cargas o checks sobre artefactos alternativos sin modificar código.
+---
+
+## 8.5. Configuración de modelos IA
+
+Los modelos entrenados no se versionan en Git. Se descargan o descomprimen localmente.
+
+Ubicación recomendada:
+
+```text
+models/sevilla_dish_normalization_reranker_beto_v1/
+models/sevilla_mention_sentiment_absa_beto_v1/
+```
+
+Ejemplo de uso:
+
+```powershell
+python -m scripts.run_sevilla_mention_sentiment_absa_v1 `
+  --input-path data/artifacts/ai/sevilla/model_inference/normalization_reranker_v1/sevilla_dish_mentions_normalized_reranker_v1.jsonl `
+  --model-dir models/sevilla_mention_sentiment_absa_beto_v1 `
+  --output-dir data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1 `
+  --strict
+```
+
+---
+
+## 8.6. Configuración de dashboards
+
+Los dashboards Streamlit leen artefactos ya exportados.
+
+Ejecuciones principales:
+
+```powershell
+streamlit run dashboard/streamlit_app.py
+streamlit run dashboard/streamlit_yelp_app.py
+streamlit run dashboard/streamlit_sevilla_v2_app.py
+```
+
+El dashboard Sevilla IA v2 espera por defecto:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
 
 ---
 
@@ -317,7 +398,7 @@ Esto permite reejecutar cargas o checks sobre artefactos alternativos sin modifi
 
 Cada script del proyecto asume que el entorno ya está preparado.
 
-### Esto implica que:
+Esto implica:
 
 - la base de datos debe existir;
 - el schema debe estar creado;
@@ -325,16 +406,19 @@ Cada script del proyecto asume que el entorno ya está preparado.
 - las rutas de datos deben ser accesibles;
 - las dependencias deben estar instaladas;
 - los DDL necesarios deben haberse ejecutado;
+- los modelos deben existir localmente cuando el script los requiera;
 - los artefactos de entrada deben estar en la ruta indicada.
 
-Por eso el proyecto diferencia claramente entre:
+El proyecto diferencia claramente entre:
 
 - scripts de preparación y comprobación del entorno;
 - scripts de ejecución de verticales;
 - loaders de integración IA;
 - scripts de comprobación post-carga;
 - scripts de consulta o demo;
-- futura ejecución de dashboard.
+- scripts de inferencia de modelos;
+- scripts de export de dashboard;
+- dashboards Streamlit.
 
 ---
 
@@ -359,7 +443,27 @@ Regla importante:
 
 ---
 
-## 11. Consideraciones de espacio en disco
+## 11. Entorno de entrenamiento en Kaggle
+
+Los modelos pesados se han entrenado en Kaggle, usando GPU cuando era necesario.
+
+Uso típico:
+
+```text
+notebook en Kaggle
+→ dataset JSONL/CSV subido como input privado
+→ entrenamiento con Transformers
+→ export ZIP del modelo
+→ descarga local
+→ descompresión en models/
+→ inferencia local con scripts
+```
+
+Esto evita exigir GPU local para el proyecto y permite reproducir la fase de entrenamiento de forma documentada.
+
+---
+
+## 12. Consideraciones de espacio en disco
 
 Algunos procesos pueden manejar muchos registros o generar temporales en PostgreSQL.
 
@@ -369,36 +473,39 @@ Ejemplos:
 - checks de mapeo contra tablas grandes;
 - consultas agregadas sin índices adecuados;
 - generación de reports grandes;
-- exportación de artefactos IA a CSV/JSONL.
+- exportación de artefactos IA a CSV/JSONL;
+- almacenamiento de modelos Transformer;
+- dashboard exports con ejemplos de reseñas completas.
 
 Recomendaciones:
 
 - mantener espacio libre suficiente en el disco donde está PostgreSQL;
 - evitar joins innecesariamente grandes;
 - usar checks optimizados;
-- usar parámetros como `--max-rows` o `--max-unique-ids` cuando se quiera una prueba ligera;
-- limpiar artefactos temporales o outputs antiguos si el disco está justo.
+- usar parámetros como `--max-rows` cuando se quiera una prueba ligera;
+- limpiar artefactos temporales o outputs antiguos si el disco está justo;
+- no versionar modelos ni datasets grandes.
 
 ---
 
-## 12. Configuración y reproducibilidad
+## 13. Configuración y reproducibilidad
 
-Uno de los objetivos principales de esta organización es favorecer la reproducibilidad.
-
-Un pipeline de datos no debe depender de ajustes manuales dispersos en el código o en la máquina.
+Uno de los objetivos principales es favorecer la reproducibilidad.
 
 La configuración actual ayuda a que:
 
-- el entorno pueda replicarse en otra máquina;
+- el entorno pueda replicarse;
 - el proyecto pueda documentarse mejor;
 - las ejecuciones sean más controlables;
 - el comportamiento sea más predecible;
 - los loaders IA puedan repetirse con `--dry-run` antes de escribir en base de datos;
-- el piloto Sevilla pueda comprobarse con reports JSON y scripts demo.
+- el piloto Sevilla pueda comprobarse con reports JSON y scripts demo;
+- la fase IA v2 pueda repetirse desde artefactos intermedios;
+- el dashboard pueda reconstruirse a partir de un contrato de datos claro.
 
 ---
 
-## 13. Buenas prácticas ya adoptadas
+## 14. Buenas prácticas ya adoptadas
 
 El proyecto sigue varias buenas prácticas importantes:
 
@@ -413,28 +520,64 @@ El proyecto sigue varias buenas prácticas importantes:
 - reports JSON para checks y cargas;
 - separación entre artefactos pesados y código versionado;
 - uso de scopes y flags para no confundir piloto con producción;
-- validación final antes de consultar resultados.
+- validación final antes de consultar resultados;
+- modelos en `models/` fuera de Git;
+- dashboards sobre exports, no directamente sobre lógica inestable;
+- documentación de contratos de datos.
 
 ---
 
-## 14. Mejoras futuras previstas
+## 15. Reglas de versionado y Git
+
+No se deben versionar:
+
+```text
+.env
+.venv/
+models/
+data/raw/
+data/external/
+data/staging/**/*.jsonl
+data/artifacts/ai/**/*.jsonl
+data/artifacts/ai/**/*.csv
+```
+
+Sí se versionan normalmente:
+
+```text
+README.md
+requirements.txt
+.env.example
+scripts/
+src/
+db/
+docs/
+dashboard/
+```
+
+Algunos summaries pequeños `.json` pueden versionarse si sirven como evidencia documental y no contienen datos sensibles ni demasiado peso.
+
+---
+
+## 16. Mejoras futuras previstas
 
 Aunque la base actual es correcta, la capa de configuración podrá evolucionar en varias líneas:
 
 - más metadata declarativa por fuente;
-- separación más explícita entre entorno local, dev y producción;
+- separación más explícita entre local, dev y producción;
 - configuración adicional para pipelines IA productivos;
-- parámetros más finos para matching y deduplicación;
-- configuración de dashboard;
-- configuración de FastAPI si se expone una capa de servicio;
-- perfiles de configuración para ejecución local, notebook, batch, dashboard y API;
-- variables específicas para modelos IA si se entrenan o despliegan más adelante.
+- parámetros finos para matching y deduplicación;
+- configuración formal de dashboard;
+- configuración de FastAPI;
+- perfiles de configuración para local, notebook, batch, dashboard y API;
+- descarga automática de modelos desde Drive o repositorio privado;
+- scheduler o automatización programada.
 
 ---
 
-## 15. Conclusión
+## 17. Conclusión
 
-La configuración y el entorno de Hidden Gems no son un detalle secundario, sino una parte esencial de la arquitectura del sistema.
+La configuración y el entorno de Hidden Gems son una parte esencial de la arquitectura del sistema.
 
 Gracias a la combinación de:
 
@@ -443,9 +586,11 @@ Gracias a la combinación de:
 - estructura de datos organizada;
 - scripts de comprobación;
 - rutas explícitas para artefactos;
+- modelos locales no versionados;
 - reports reproducibles;
 - checks de integración;
+- exports de dashboard;
 
-el proyecto puede ejecutarse de forma más consistente, trazable y profesional.
+el proyecto puede ejecutarse de forma consistente, trazable y profesional.
 
-Esta base es la que permite que las verticales, la capa IA, el piloto Sevilla y las futuras fases de dashboard/API funcionen de manera controlada.
+Esta base permite que las verticales, la capa IA, el piloto Sevilla, la fase IA v2 y los dashboards funcionen de manera controlada.

@@ -502,7 +502,9 @@ Esta entidad se alimenta después de que existan:
 * locales en `place`
 * barrios en `neighborhood`
 
-En la vertical OSM / Overpass, una vez cargados los puntos de interés, se puede usar la geometría del local para calcular el barrio correspondiente y crear una asignación en `place_neighborhood_assignment`.
+En la vertical OSM / Overpass y en la vertical Google Places, una vez cargados los puntos de interés, se puede usar la geometría del local para calcular el barrio correspondiente y crear una asignación en `place_neighborhood_assignment`.
+
+En las fases IA, esta asignación es esencial para que las señales y rankings puedan agregarse por barrio y distrito.
 
 ---
 
@@ -554,6 +556,38 @@ Las decisiones principales son:
 5. Mantener método, confianza y revisión manual en la asignación.
 6. Permitir histórico de asignaciones.
 7. Usar PostGIS para geometrías, índices y operaciones espaciales.
+
+---
+
+## 10. Estado actual y uso en ranking/dashboard v2
+
+La capa geográfica ya se utiliza de forma directa en la explotación final del proyecto. En el ranking Sevilla IA v2, cada candidato seleccionado conserva distrito y barrio normalizados para permitir análisis territorial.
+
+Resultados del dashboard v2:
+
+| Métrica | Valor |
+|---|---:|
+| Distritos con candidatos seleccionados | 11 |
+| Barrios con candidatos seleccionados | 67 |
+| Locales seleccionados | 198 |
+| Candidatos seleccionados | 268 |
+
+La geografía también alimenta:
+
+- filtros por distrito y barrio en dashboard;
+- resúmenes `district_summary.csv` y `neighborhood_summary.csv`;
+- mapa territorial del dashboard Sevilla IA v2;
+- comparación de cobertura territorial entre v1 y v2.
+
+La comparación v1/v2 muestra una mejora territorial clara:
+
+| Métrica | Resultado |
+|---|---:|
+| Barrios seleccionados v1 | 55 |
+| Barrios seleccionados v2 | 67 |
+| Delta v2 - v1 | +12 |
+
+Para el mapa del dashboard v2, el export puede usar coordenadas reales de locales cuando están disponibles (`latitude_std`, `longitude_std`) y, si faltan, apoyarse en centroides aproximados por distrito/barrio como fallback visual. La fuente geográfica oficial sigue siendo la referencia para asignación territorial.
 
 ---
 

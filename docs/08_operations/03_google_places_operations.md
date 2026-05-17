@@ -1,5 +1,7 @@
 # 03. Google Places Operations
 
+
+
 ## 1. Propósito
 
 Este documento actúa como **runbook operativo específico para Google Places** dentro de Hidden Gems.
@@ -633,4 +635,46 @@ Un proceso de Google Places o Reviews puede considerarse cerrado cuando:
 [ ] Los artifacts están guardados.
 [ ] No se han subido datos sensibles a Git.
 [ ] Si aplica, las reviews están disponibles para export IA.
+```
+
+---
+
+## 16. Actualización final: papel de Google Places en Sevilla IA v2
+
+Google Places y Google Places Reviews son la base real de la fase Sevilla IA v2.
+
+```text
+Google Places Text Search
+→ locales reales de Sevilla
+→ place / place_source_ref / barrio / distrito
+
+Google Places Reviews
+→ reseñas reales asociadas a esos locales
+→ review
+→ datasets IA Sevilla
+→ modelos entrenados
+→ ranking v2
+→ dashboard final
+```
+
+Resultados derivados en la fase final:
+
+```text
+ranking_v2_candidates_scored = 2.335
+selected_hidden_gem_candidates_v2 = 268
+selected_places_v2 = 198
+selected_neighborhoods_v2 = 67
+selected_districts_v2 = 11
+```
+
+Para la entrega actual no es necesario volver a consumir Google Places si ya existen los artefactos finales. Si en el futuro se quiere generar un ranking v3, se mantiene la regla:
+
+```text
+batch pequeño → check → export IA → modelos/inferencia → ranking → dashboard
+```
+
+Dashboard final asociado:
+
+```text
+dashboard/streamlit_sevilla_v2_app.py
 ```

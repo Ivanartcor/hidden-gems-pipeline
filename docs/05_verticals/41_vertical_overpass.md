@@ -571,3 +571,54 @@ La vertical OSM / Overpass aporta una base abierta, trazable y georreferenciada 
 Su integración permite probar el modelo central de Hidden Gems y conectar adquisición, geografía, clasificación y calidad.
 
 Aunque no aporta reseñas como fuente principal, es fundamental para construir cobertura espacial, validar barrios y preparar el sistema para integraciones posteriores con fuentes más ricas como Google Places.
+
+---
+
+## 23. Actualización final: papel de Overpass tras Sevilla IA v2
+
+La fase Sevilla IA v2 no convierte Overpass en una fuente textual ni en una fuente directa de sentimiento, porque Overpass no aporta reseñas. Sin embargo, su valor dentro del repositorio sigue siendo importante.
+
+Overpass aporta:
+
+- una base abierta de locales gastronómicos;
+- contraste frente a fuentes comerciales como Google Places;
+- validación del modelo `place` + `place_source_ref`;
+- cobertura geográfica inicial;
+- categorías y tags abiertos;
+- posibilidad futura de comparar cobertura OSM vs Google por barrio.
+
+### 23.1. Relación con IA v2
+
+El ranking Sevilla IA v2 se construyó principalmente sobre reviews reales de Google Places, porque la IA necesita texto. Por tanto, Overpass no participa directamente en:
+
+```text
+NER de platos
+normalización de menciones
+sentimiento ABSA
+ranking basado en reseñas
+```
+
+Aun así, Overpass sigue siendo parte de la arquitectura multisource del proyecto y puede ayudar en futuras fases a:
+
+- detectar locales presentes en OSM pero ausentes en Google;
+- enriquecer cobertura territorial;
+- validar si un local es estable o aparece en varias fuentes;
+- reforzar señales de confianza de locales mediante presencia multisource;
+- comparar densidad gastronómica por barrio.
+
+### 23.2. Estado final para entrega
+
+Para la entrega académica, la vertical queda cerrada como fuente funcional y documentada:
+
+```text
+[OK] Ingesta Overpass implementada
+[OK] Raw y trazabilidad disponibles
+[OK] Transformación a candidato común
+[OK] Deduplicación intra-fuente
+[OK] Importación canónica
+[OK] Asignación territorial
+[OK] Documentación actualizada
+```
+
+No es necesario ampliar Overpass para cerrar el PI. Las posibles mejoras pertenecen a una fase futura de producción o enriquecimiento multisource.
+

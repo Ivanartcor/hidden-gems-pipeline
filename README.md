@@ -1,12 +1,42 @@
 # Hidden Gems Pipeline
 
-Pipeline inteligente de adquisición, validación, normalización, enriquecimiento e integración IA de datos gastronómicos para **Hidden Gems**, un proyecto orientado a descubrir locales y platos destacados, con objetivo final de ranking por barrio.
+Pipeline inteligente de adquisición, validación, normalización, enriquecimiento, integración IA, ranking y dashboard para **Hidden Gems**, un proyecto orientado a descubrir **platos destacados por local y barrio**, con foco inicial en Sevilla.
+
+> Estado de entrega académica: **MVP avanzado / prototipo analítico funcional cerrado para Proyecto Integrado**.  
+> Estado de producción: **no productivo todavía**. La fase IA v2 está validada como ranking experimental asistido por modelos, pendiente de validación humana, escalado y automatización si el proyecto continúa hacia producción.
+
+---
+
+## Índice rápido
+
+1. [¿Qué es este proyecto?](#1-qué-es-este-proyecto)
+2. [Objetivo actual de la entrega](#2-objetivo-actual-de-la-entrega)
+3. [Problema que resuelve](#3-problema-que-resuelve)
+4. [Fuentes de datos](#4-fuentes-de-datos)
+5. [Google, Yelp y alcance productivo](#5-google-yelp-y-alcance-productivo)
+6. [Arquitectura general](#6-arquitectura-general)
+7. [Stack tecnológico](#7-stack-tecnológico)
+8. [Modelo de datos](#8-modelo-de-datos)
+9. [Estado actual del proyecto](#9-estado-actual-del-proyecto)
+10. [Estructura del repositorio](#10-estructura-del-repositorio)
+11. [Configuración inicial](#11-configuración-inicial)
+12. [Ejecuciones principales](#12-ejecuciones-principales)
+13. [Yelp Open Dataset](#13-yelp-open-dataset)
+14. [Módulo IA e integración PostgreSQL](#14-módulo-ia-e-integración-postgresql)
+15. [Fase Sevilla IA v2](#15-fase-sevilla-ia-v2)
+16. [Dashboards](#16-dashboards)
+17. [Capas y artefactos principales](#17-capas-y-artefactos-principales)
+18. [Reglas importantes de Git](#18-reglas-importantes-de-git)
+19. [Principios de diseño](#19-principios-de-diseño)
+20. [Documentación detallada](#20-documentación-detallada)
+21. [Roadmap](#21-roadmap)
+22. [Estado final de entrega](#22-estado-final-de-entrega)
 
 ---
 
 ## 1. ¿Qué es este proyecto?
 
-**Hidden Gems Pipeline** es el núcleo de procesamiento de datos del proyecto Hidden Gems.
+**Hidden Gems Pipeline** es el núcleo de procesamiento de datos e IA del proyecto Hidden Gems.
 
 El objetivo de este repositorio no es construir directamente una aplicación final de cara al usuario, sino desarrollar una infraestructura central, reutilizable, trazable y extensible que permita:
 
@@ -23,21 +53,21 @@ El objetivo de este repositorio no es construir directamente una aplicación fin
 - normalizar variantes de platos en un catálogo canónico;
 - calcular sentimiento asociado a menciones de platos;
 - agregar señales por local y plato;
-- generar rankings explicables de candidatos Hidden Gems.
+- generar rankings explicables de candidatos Hidden Gems;
+- exportar resultados limpios para dashboards;
+- comparar versiones del ranking y documentar las mejoras.
 
-En otras palabras, este repositorio implementa la **infraestructura de datos, automatización e integración IA** sobre la que se apoyará el resto del sistema Hidden Gems.
+En otras palabras, este repositorio implementa la **infraestructura de datos, automatización, IA aplicada y explotación analítica** sobre la que se apoyará el resto del sistema Hidden Gems.
 
 ---
 
-## 2. Idea general del proyecto
+## 2. Objetivo actual de la entrega
 
-El enfoque actual del proyecto es:
+El enfoque final de esta entrega es:
 
-> **Pipeline inteligente de adquisición y procesamiento de datos gastronómicos para Hidden Gems**
+> **Pipeline inteligente de adquisición y procesamiento de datos gastronómicos para descubrir platos destacados por barrio mediante IA y ranking explicable.**
 
-La idea no es desarrollar toda la aplicación Hidden Gems en esta fase, sino construir el módulo central de datos e IA que permita pasar de fuentes externas heterogéneas a resultados consultables y trazables.
-
-Flujo general actual:
+La entrega académica incluye:
 
 ```text
 fuentes externas
@@ -50,14 +80,17 @@ fuentes externas
 → deduplicación / matching
 → persistencia canónica
 → reviews
-→ corpus IA
-→ detección de platos
-→ normalización de platos
-→ sentimiento por mención
-→ agregación de señales
-→ ranking Hidden Gems prototipo
-→ vistas SQL / consultas demo
+→ datasets IA
+→ modelos entrenados
+→ inferencia local
+→ señales por local y plato
+→ ranking Hidden Gems Sevilla v2
+→ comparación v1 vs v2
+→ dashboard final
+→ documentación técnica
 ```
+
+El resultado final no se presenta como producto en producción, sino como un **MVP avanzado** con una cadena funcional de datos e IA de extremo a extremo.
 
 ---
 
@@ -73,7 +106,7 @@ Problemas habituales:
 - la información geográfica no siempre viene preparada para trabajar por barrio;
 - las reseñas no siempre están asociadas de forma clara a una entidad canónica;
 - los datos no suelen estar listos directamente para análisis, NLP o ranking;
-- las reseñas hablan de locales, pero Hidden Gems necesita extraer información más fina: platos concretos, menciones, sentimiento y señales agregadas.
+- las reseñas hablan de locales completos, pero Hidden Gems necesita extraer información más fina: platos concretos, menciones, sentimiento y señales agregadas.
 
 Este pipeline resuelve ese problema creando un flujo reproducible para:
 
@@ -88,7 +121,7 @@ Este pipeline resuelve ese problema creando un flujo reproducible para:
 
 ---
 
-## 4. Fuentes de datos del proyecto
+## 4. Fuentes de datos
 
 Las fuentes definidas para el pipeline son:
 
@@ -102,7 +135,7 @@ Las fuentes definidas para el pipeline son:
 
 ---
 
-## 5. Principio clave sobre Google y Yelp
+## 5. Google, Yelp y alcance productivo
 
 El proyecto diferencia claramente entre datos **operativos**, datos de **entrenamiento/validación IA** y datos de **prototipo**.
 
@@ -164,10 +197,12 @@ El proyecto sigue una arquitectura por capas, modular y reproducible.
 - **reference**: datos de referencia estructurales, como geografía oficial;
 - **canonical / business**: entidades centrales del dominio, como `place`, `place_source_ref` y `review`;
 - **AI derived layer**: entidades derivadas de IA como platos, menciones, sentimiento, señales y ranking;
+- **model inference artifacts**: salidas locales de modelos entrenados y capas intermedias v2;
+- **dashboard exports**: datasets limpios para explotación visual;
 - **artifacts / ops**: logs, perfiles, resúmenes y resultados de comprobación;
 - **views / query layer**: vistas SQL y scripts de consulta para explotar resultados.
 
-### Flujo conceptual
+### Flujo conceptual general
 
 ```text
 Fuentes externas
@@ -182,14 +217,29 @@ Fuentes externas
 → procesamiento IA
 → señales
 → ranking
-→ vistas / demo de consulta
+→ vistas / dashboard / demo de consulta
+```
+
+### Flujo final Sevilla IA v2
+
+```text
+Google Reviews Sevilla
+→ exportación / datasets de anotación
+→ Modelo 1: NER de platos
+→ Hybrid + NER mention candidates v2
+→ Modelo 3: normalización / entity linking reranker
+→ Modelo 2: sentimiento por mención / ABSA
+→ place-dish signals v2
+→ ranking Hidden Gems Sevilla v2
+→ comparación v1 vs v2
+→ dashboard Sevilla IA v2
 ```
 
 ---
 
 ## 7. Stack tecnológico
 
-### Lenguaje y librerías
+### Lenguaje y librerías base
 
 - Python
 - pandas
@@ -198,7 +248,6 @@ Fuentes externas
 - psycopg2-binary
 - pydantic
 - pydantic-settings
-- spaCy
 - RapidFuzz
 - pytest
 - logging
@@ -206,10 +255,14 @@ Fuentes externas
 
 ### IA / NLP
 
-- Transformers para detección de platos mediante NER
-- Dataset BIO para entrenamiento NER
-- Normalización híbrida basada en reglas, aliases y limpieza textual
-- Sentimiento híbrido por mención
+- Hugging Face Transformers
+- PyTorch
+- Datasets
+- BETO (`dccuchile/bert-base-spanish-wwm-cased`)
+- Token Classification para NER de platos
+- Sequence Classification para normalización / reranking
+- Sequence Classification para sentimiento por mención / ABSA
+- Reglas, aliases y limpieza textual para soporte híbrido
 - Agregación de señales
 - Ranking explicable basado en scoring
 
@@ -217,6 +270,12 @@ Fuentes externas
 
 - PostgreSQL
 - PostGIS
+
+### Visualización y explotación
+
+- Streamlit
+- Plotly
+- pandas
 
 ### Exposición futura
 
@@ -290,7 +349,7 @@ El pipeline se apoya en un modelo relacional diseñado para separar claramente:
 
 ## 9. Estado actual del proyecto
 
-El proyecto ya cuenta con una base estructural montada en PostgreSQL/PostGIS, varias verticales funcionales y una primera integración IA completa sobre corpus Yelp.
+El proyecto cuenta con una base estructural montada en PostgreSQL/PostGIS, verticales funcionales, una integración IA inicial sobre Yelp y una fase avanzada Sevilla IA v2 basada en modelos entrenados.
 
 ### Verticales implementadas
 
@@ -354,7 +413,7 @@ reviews vinculadas a place/place_source_ref/barrio
 - carga prototipo de negocios y reviews Yelp en PostgreSQL;
 - uso como base experimental para el módulo IA completo.
 
-### Módulo IA integrado
+### Módulo IA integrado sobre Yelp
 
 Se ha construido e integrado una cadena IA completa:
 
@@ -370,7 +429,7 @@ reviews Yelp
 → consultas demo
 ```
 
-Estado final de carga IA:
+Estado final de carga IA Yelp:
 
 ```text
 dish: 9.937
@@ -388,6 +447,33 @@ ranking_scope = yelp_prototype
 is_production_ready = false
 ```
 
+### Fase Sevilla IA v2 cerrada
+
+La fase Sevilla IA v2 incorpora modelos entrenados específicamente para mejorar el ranking sobre datos reales/prototipo de Sevilla:
+
+```text
+NER v1.2
+→ Hybrid + NER candidates v2
+→ Normalization reranker v1
+→ ABSA sentiment v1
+→ Place-dish signals v2
+→ Hidden Gems Ranking Sevilla v2
+→ Dashboard Sevilla IA v2
+```
+
+Resultados principales:
+
+```text
+candidatos puntuados v2: 2.335
+candidatos seleccionados v2: 268
+locales seleccionados: 198
+platos seleccionados: 40
+barrios seleccionados: 67
+distritos seleccionados: 11
+coincidencias v1/v2: 119
+cobertura de v1 dentro de v2: 79,3 %
+```
+
 ---
 
 ## 10. Estructura del repositorio
@@ -401,9 +487,19 @@ hidden-gems-pipeline/
 │   README.md
 │   requirements.txt
 │
+├───dashboard/
+│   ├───streamlit_app.py
+│   ├───streamlit_yelp_app.py
+│   └───streamlit_sevilla_v2_app.py
+│
 ├───data/
 │   ├───artifacts/
 │   │   ├───ai/
+│   │   │   ├───sevilla/
+│   │   │   │   ├───dashboard/
+│   │   │   │   ├───dashboard_v2/
+│   │   │   │   └───model_inference/
+│   │   │   └───yelp/
 │   │   ├───google_places_batches/
 │   │   ├───google_places_reviews_batches/
 │   │   ├───google_places_reviews_import/
@@ -424,6 +520,13 @@ hidden-gems-pipeline/
 │
 ├───db/
 │   ├───ddl/
+│   │   ├───00_foundation.sql
+│   │   ├───01_geo_governance.sql
+│   │   ├───02_geo_reference.sql
+│   │   ├───03_core_places.sql
+│   │   ├───04_classification_and_geo_assignment.sql
+│   │   ├───05_validation.sql
+│   │   ├───06_review_enrichment.sql
 │   │   ├───07_ai_module.sql
 │   │   └───08_ai_views.sql
 │   ├───queries/
@@ -435,12 +538,16 @@ hidden-gems-pipeline/
 │   ├───03_data_model/
 │   ├───04_sources/
 │   ├───05_verticals/
-│   ├───06_normalization/
-│   ├───07_quality/
 │   ├───08_operations/
-│   ├───09_roadmap/
 │   ├───10_ai_module/
-│   └───11_ai_integration/
+│   ├───11_ai_integration/
+│   ├───12_sevilla_ai_pilot/
+│   └───13_sevilla_ai_v2/
+│
+├───models/
+│   ├───sevilla_dish_ner_beto_v1_2/
+│   ├───sevilla_dish_normalization_reranker_beto_v1/
+│   └───sevilla_mention_sentiment_absa_beto_v1/
 │
 ├───notebooks/
 ├───scripts/
@@ -456,6 +563,8 @@ hidden-gems-pipeline/
 │
 └───tests/
 ```
+
+> Nota: `models/`, `.env`, `.venv`, `data/` y artefactos grandes no deben subirse al repositorio.
 
 ---
 
@@ -766,7 +875,7 @@ python -m scripts.load_yelp_ai_core_reviews `
 
 La cadena IA se ha desarrollado primero en notebooks y después se ha integrado en PostgreSQL mediante tablas, loaders, checks, vistas y consultas demo.
 
-### Notebooks principales del módulo IA
+### Notebooks principales del módulo IA inicial
 
 ```text
 04_dish_detection_dataset_exploration.ipynb
@@ -867,7 +976,176 @@ python -m scripts.query_ai_ranking_demo `
 
 ---
 
-## 15. Capas y artefactos principales
+## 15. Fase Sevilla IA v2
+
+La fase Sevilla IA v2 es la fase final de la entrega académica. Su objetivo fue mejorar el ranking Sevilla piloto mediante modelos entrenados y una capa de inferencia local.
+
+### Modelos entrenados
+
+| Modelo | Tarea | Enfoque | Resultado principal |
+|---|---|---|---|
+| Modelo 1 | Detección de menciones de platos | NER BIO con BETO | Detecta menciones de platos en reseñas |
+| Modelo 3 | Normalización / entity linking | Cross-encoder reranker con BETO | Enlaza menciones a `dish_id` canónico |
+| Modelo 2 | Sentimiento por mención / ABSA | Clasificación negative / neutral / positive | Estima sentimiento hacia cada plato concreto |
+
+> La numeración Modelo 2 / Modelo 3 se conserva porque fue la planificación original de la fase, aunque en el flujo técnico la normalización se aplica antes del sentimiento ABSA.
+
+### Flujo de scripts IA v2
+
+```powershell
+# 1. Combinar capa híbrida previa con NER entrenado
+python -m scripts.build_sevilla_hybrid_ner_mention_candidates_v2 `
+  --ner-path data/artifacts/ai/sevilla/model_inference/ner_v1_2_cleaned/sevilla_dish_mentions_ner_model_v1_2.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/hybrid_ner_v2 `
+  --strict
+```
+
+```powershell
+# 2. Normalización / entity linking con reranker
+python -m scripts.run_sevilla_dish_normalization_reranker_v1 `
+  --input-path data/artifacts/ai/sevilla/model_inference/hybrid_ner_v2/sevilla_dish_mentions_hybrid_ner_candidates_v2.jsonl `
+  --model-dir models/sevilla_dish_normalization_reranker_beto_v1 `
+  --output-dir data/artifacts/ai/sevilla/model_inference/normalization_reranker_v1 `
+  --strict
+```
+
+```powershell
+# 3. Sentimiento ABSA por mención
+python -m scripts.run_sevilla_mention_sentiment_absa_v1 `
+  --input-path data/artifacts/ai/sevilla/model_inference/normalization_reranker_v1/sevilla_dish_mentions_normalized_reranker_v1.jsonl `
+  --model-dir models/sevilla_mention_sentiment_absa_beto_v1 `
+  --output-dir data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1 `
+  --strict
+```
+
+```powershell
+# 4. Agregación de señales por local y plato
+python -m scripts.build_sevilla_place_dish_signals_v2 `
+  --input-path data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/sevilla_dish_mentions_with_absa_sentiment_v1.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2 `
+  --strict
+```
+
+```powershell
+# 5. Ranking Hidden Gems Sevilla v2
+python -m scripts.build_sevilla_hidden_gems_ranking_v2 `
+  --input-path data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/sevilla_place_dish_signals_v2.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/ranking_v2 `
+  --strict
+```
+
+```powershell
+# 6. Comparación ranking v1 vs v2
+python -m scripts.compare_sevilla_ranking_v1_vs_v2 `
+  --v1-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --v2-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_selected_v2.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison `
+  --strict
+```
+
+```powershell
+# 7. Export para dashboard v2
+python -m scripts.export_sevilla_dashboard_data_v2 `
+  --ranking-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_ranking_v2.jsonl `
+  --selected-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_selected_v2.jsonl `
+  --signals-path data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/sevilla_place_dish_signals_v2.jsonl `
+  --mentions-path data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/sevilla_dish_mentions_with_absa_sentiment_v1.jsonl `
+  --comparison-dir data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison `
+  --coordinates-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --output-dir data/artifacts/ai/sevilla/dashboard_v2 `
+  --expected-selected 268 `
+  --include-mentions `
+  --examples-per-candidate 5 `
+  --include-full-review-text `
+  --strict
+```
+
+### Resultados finales v2
+
+```text
+ranking_rows: 2.335
+selected_rows: 268
+selected_places: 198
+selected_dishes: 40
+selected_neighborhoods: 67
+selected_districts: 11
+mentions_selected: 651
+reviews_selected: 627
+```
+
+Distribución por tier:
+
+```text
+top_hidden_gem: 16
+strong_hidden_gem: 77
+promising_hidden_gem: 139
+exploratory_hidden_gem: 36
+```
+
+Comparación con v1:
+
+```text
+v1_selected_unique: 150
+v2_selected_unique: 268
+matched_candidates: 119
+v1_coverage_in_v2: 0.793333
+jaccard_overlap: 0.397993
+selected_places_delta_v2_minus_v1: +76
+selected_neighborhoods_delta_v2_minus_v1: +12
+```
+
+---
+
+## 16. Dashboards
+
+El proyecto incluye dashboards Streamlit para consultar los resultados de forma visual.
+
+### Dashboard Sevilla v1
+
+```powershell
+streamlit run dashboard/streamlit_app.py
+```
+
+Dashboard inicial basado en el ranking Sevilla piloto.
+
+### Dashboard Yelp
+
+```powershell
+streamlit run dashboard/streamlit_yelp_app.py
+```
+
+Dashboard para explorar el prototipo Yelp y los resultados del corpus externo.
+
+### Dashboard Sevilla IA v2
+
+```powershell
+streamlit run dashboard/streamlit_sevilla_v2_app.py
+```
+
+Dashboard final de la entrega, basado en:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Incluye:
+
+- resumen ejecutivo;
+- KPIs principales;
+- ranking IA v2;
+- filtros por distrito, barrio, plato, local, tier, evidencia y calidad;
+- análisis territorial;
+- mapa con coordenadas reales cuando están disponibles;
+- análisis de platos y locales;
+- evidencia y calidad;
+- comparación v1 vs v2;
+- explicación de la puntuación `hidden_gem_score_v2`;
+- detalle de menciones y reseñas;
+- contrato de datos y artefactos.
+
+---
+
+## 17. Capas y artefactos principales
 
 ### Raw
 
@@ -925,6 +1203,38 @@ ranking/
 checks/
 query_demo/
 yelp/
+sevilla/
+```
+
+### Sevilla dashboard v2
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Archivos principales:
+
+```text
+dashboard_metadata.json
+kpi_summary.json
+ranking_detail.csv
+selected_candidates.csv
+top_global.csv
+top_by_district.csv
+top_by_neighborhood.csv
+top_by_dish.csv
+district_summary.csv
+neighborhood_summary.csv
+dish_summary.csv
+place_summary.csv
+tier_summary.csv
+evidence_summary.csv
+quality_summary.csv
+filter_options.json
+data_contract.json
+mention_examples.csv
+place_coordinates.csv
+comparison/
 ```
 
 ### NLP corpus
@@ -935,13 +1245,24 @@ data/artifacts/nlp_corpus/
 
 Contiene corpus preparados para tareas de NLP.
 
+### Modelos locales
+
+```text
+models/
+```
+
+Contiene modelos descargados de Kaggle o entrenados localmente. Esta carpeta debe estar ignorada por Git.
+
 ---
 
-## 16. Reglas importantes de Git
+## 18. Reglas importantes de Git
 
 No deben subirse al repositorio:
 
 ```text
+.env
+.venv/
+models/
 data/external/yelp_open_dataset/
 data/raw/
 data/staging/**/*.jsonl
@@ -949,7 +1270,6 @@ data/staging/**/*.txt
 data/artifacts/nlp_corpus/*.jsonl
 data/artifacts/ai/**/*.jsonl
 data/artifacts/ai/**/*.csv
-.env
 ```
 
 Sí se pueden versionar:
@@ -959,6 +1279,7 @@ scripts/
 src/
 docs/
 db/
+dashboard/
 README.md
 requirements.txt
 .env.example
@@ -967,7 +1288,7 @@ summaries pequeños si se decide conservarlos
 
 ---
 
-## 17. Principios de diseño seguidos
+## 19. Principios de diseño
 
 El desarrollo del pipeline sigue estas reglas:
 
@@ -987,98 +1308,59 @@ El desarrollo del pipeline sigue estas reglas:
 - no insertar señales IA sin `place_id` y `dish_id` resueltos;
 - versionar modelos, reglas y ejecuciones IA;
 - mantener Yelp como prototipo IA, no como producción Sevilla;
-- mantener el ranking Sevilla futuro separado del ranking `yelp_prototype`.
+- mantener el ranking Sevilla separado del ranking `yelp_prototype`;
+- marcar los rankings asistidos por modelos como experimentales mientras no haya validación humana suficiente.
 
 ---
 
-## 18. Documentación detallada
+## 20. Documentación detallada
 
-La documentación extensa del proyecto está organizada en `docs/`.
+La documentación extensa del proyecto está organizada en [`docs/`](docs/).
 
-### Contexto
+### Índice de carpetas principales
 
-```text
-docs/01_context/
-```
+| Carpeta | Contenido |
+|---|---|
+| [`docs/01_context/`](docs/01_context/) | Contexto, problema, objetivos, alcance y límites. |
+| [`docs/02_architecture/`](docs/02_architecture/) | Arquitectura del pipeline, flujo general, estructura del proyecto y configuración. |
+| [`docs/03_data_model/`](docs/03_data_model/) | Entidades, relaciones, trazabilidad, calidad y decisiones de schema. |
+| [`docs/04_sources/`](docs/04_sources/) | Fuentes de datos: Sevilla Geo, Overpass, Google Places, Yelp. |
+| [`docs/05_verticals/`](docs/05_verticals/) | Verticales operativas y flujo específico por fuente. |
+| [`docs/08_operations/`](docs/08_operations/) | Operaciones, ejecución de scripts, checks, logs, errores y dashboards. |
+| [`docs/10_ai_module/`](docs/10_ai_module/) | Módulo IA inicial: detección, normalización, sentimiento, ranking v1. |
+| [`docs/11_ai_integration/`](docs/11_ai_integration/) | Integración de la capa IA en PostgreSQL: schema, loaders, checks y vistas. |
+| [`docs/12_sevilla_ai_pilot/`](docs/12_sevilla_ai_pilot/) | Piloto Sevilla previo a la fase v2. |
+| [`docs/13_sevilla_ai_v2/`](docs/13_sevilla_ai_v2/) | Fase final IA v2: modelos entrenados, inferencia, ranking, comparación y dashboard. |
 
-Incluye visión general, problema, objetivos, alcance y límites.
+### Documentación de la fase Sevilla IA v2
 
-### Arquitectura
+| Documento | Contenido |
+|---|---|
+| [`00_index.md`](docs/13_sevilla_ai_v2/00_index.md) | Índice de la fase IA v2. |
+| [`01_phase_overview.md`](docs/13_sevilla_ai_v2/01_phase_overview.md) | Resumen ejecutivo de la fase IA v2. |
+| [`02_v2_pipeline_overview.md`](docs/13_sevilla_ai_v2/02_v2_pipeline_overview.md) | Flujo técnico completo de IA v2. |
+| [`03_datasets_and_annotation.md`](docs/13_sevilla_ai_v2/03_datasets_and_annotation.md) | Datasets, anotación, weak labels y formatos. |
+| [`04_model_1_dish_ner.md`](docs/13_sevilla_ai_v2/04_model_1_dish_ner.md) | Modelo 1: NER de platos. |
+| [`05_model_3_dish_normalization_reranker.md`](docs/13_sevilla_ai_v2/05_model_3_dish_normalization_reranker.md) | Modelo 3: normalización/entity linking con reranker. |
+| [`06_model_2_mention_sentiment_absa.md`](docs/13_sevilla_ai_v2/06_model_2_mention_sentiment_absa.md) | Modelo 2: sentimiento por mención / ABSA. |
+| [`07_hybrid_ner_candidates_v2.md`](docs/13_sevilla_ai_v2/07_hybrid_ner_candidates_v2.md) | Capa Hybrid + NER candidates v2. |
+| [`08_normalization_inference_v2.md`](docs/13_sevilla_ai_v2/08_normalization_inference_v2.md) | Inferencia de normalización v2. |
+| [`09_sentiment_inference_v2.md`](docs/13_sevilla_ai_v2/09_sentiment_inference_v2.md) | Inferencia ABSA v2. |
+| [`10_place_dish_signals_v2.md`](docs/13_sevilla_ai_v2/10_place_dish_signals_v2.md) | Señales agregadas por local y plato. |
+| [`11_hidden_gems_ranking_v2.md`](docs/13_sevilla_ai_v2/11_hidden_gems_ranking_v2.md) | Ranking Hidden Gems Sevilla v2. |
+| [`12_ranking_v1_vs_v2_comparison.md`](docs/13_sevilla_ai_v2/12_ranking_v1_vs_v2_comparison.md) | Comparación ranking v1 vs v2. |
+| [`13_dashboard_v2.md`](docs/13_sevilla_ai_v2/13_dashboard_v2.md) | Dashboard Sevilla IA v2. |
+| [`14_artifacts_and_data_contracts.md`](docs/13_sevilla_ai_v2/14_artifacts_and_data_contracts.md) | Artefactos, contratos de datos y granularidad. |
+| [`15_limitations_and_risks.md`](docs/13_sevilla_ai_v2/15_limitations_and_risks.md) | Limitaciones, riesgos y decisiones prudentes. |
+| [`16_next_steps.md`](docs/13_sevilla_ai_v2/16_next_steps.md) | Próximos pasos si el proyecto avanza a producción. |
 
-```text
-docs/02_architecture/
-```
+### Archivo auxiliar
 
-Incluye arquitectura del pipeline, flujo general, estructura del proyecto y configuración.
-
-### Modelo de datos
-
-```text
-docs/03_data_model/
-```
-
-Incluye entidades, relaciones, trazabilidad, calidad y decisiones de schema.
-
-### Fuentes
-
-```text
-docs/04_sources/
-```
-
-Incluye descripción y rol de cada fuente:
-
-- Sevilla Geo;
-- OSM / Overpass;
-- Google Places;
-- Yelp Open Dataset.
-
-### Verticales
-
-```text
-docs/05_verticals/
-```
-
-Incluye verticales operativas:
-
-- Sevilla Geo;
-- Overpass;
-- Google Places;
-- Google Places Reviews;
-- Yelp Open Dataset.
-
-### Módulo IA
-
-```text
-docs/10_ai_module/
-```
-
-Documenta la fase experimental IA:
-
-- detección de platos;
-- normalización;
-- sentimiento por mención;
-- agregación;
-- ranking Hidden Gems v1;
-- resultados y limitaciones.
-
-### Integración IA
-
-```text
-docs/11_ai_integration/
-```
-
-Documenta la integración real de la capa IA en PostgreSQL:
-
-- schema IA;
-- loaders;
-- checks;
-- vistas SQL;
-- estado actual;
-- próximos pasos.
+- [`docs/barrios_google_place.txt`](docs/barrios_google_place.txt): listado auxiliar de barrios usado durante la preparación de queries Google Places.
 
 ---
 
-## 19. Roadmap resumido
+## 21. Roadmap
 
 ### Ya implementado
 
@@ -1095,7 +1377,7 @@ Documenta la integración real de la capa IA en PostgreSQL:
 - subset de negocios gastronómicos de Yelp;
 - subset de reviews gastronómicas de Yelp;
 - corpus IA/NLP Yelp;
-- entrenamiento y evaluación de Dish NER;
+- entrenamiento y evaluación inicial de Dish NER;
 - normalización de platos;
 - sentimiento híbrido por mención;
 - agregación de señales;
@@ -1103,60 +1385,83 @@ Documenta la integración real de la capa IA en PostgreSQL:
 - schema IA en PostgreSQL;
 - carga de catálogo, menciones, sentimiento, señales y ranking;
 - vistas SQL de consulta IA;
-- script demo de consulta IA.
+- script demo de consulta IA;
+- dashboard Sevilla v1;
+- dashboard Yelp;
+- export de datasets de anotación IA Sevilla;
+- entrenamiento de NER Sevilla v1.2;
+- entrenamiento de normalización / entity linking reranker;
+- entrenamiento de sentimiento por mención / ABSA;
+- inferencia local de modelos IA v2;
+- señales local-plato v2;
+- ranking Hidden Gems Sevilla v2;
+- comparación ranking v1 vs v2;
+- export dashboard v2;
+- dashboard Sevilla IA v2;
+- documentación completa de la fase IA v2.
 
-### En curso / siguiente fase
+### Cerrado para entrega académica
 
-- actualización de documentación general del repositorio;
-- preparación de flujo IA desde reviews reales exportadas desde PostgreSQL;
-- piloto con reviews de Google Places Sevilla;
-- evaluación de idioma, volumen y calidad textual;
-- diseño de adaptación del módulo IA a español / multilingüe.
+La entrega del Proyecto Integrado se considera cerrada en este punto:
 
-### Próximos pasos
+```text
+pipeline de datos + IA + ranking + dashboard + documentación
+```
 
-- crear `export_reviews_for_ai.py`;
-- crear checks de exportación IA desde `review`;
-- probar la cadena IA sobre reviews reales de Google Places;
-- incorporar `neighborhood_id` y `district_id` al ranking productivo;
-- generar ranking `sevilla_neighborhood`;
-- marcar candidatos Sevilla como `is_production_ready = true` solo cuando estén validados;
-- exponer resultados mínimos con FastAPI o dashboard.
+### Posibles próximos pasos si el proyecto continúa
+
+- validación humana del top ranking;
+- revisión de candidatos low confidence / no candidate;
+- mejora del catálogo de platos y aliases;
+- penalización o tratamiento especial de platos demasiado genéricos;
+- descarga automática de modelos desde Drive u otro storage externo;
+- automatización completa de la cadena IA v2;
+- integración de ranking v2 en PostgreSQL como capa persistida;
+- API con FastAPI;
+- despliegue de dashboard;
+- frontend público;
+- monitorización de costes Google Places;
+- evaluación periódica de calidad y drift de modelos.
 
 ---
 
-## 20. Estado del proyecto
+## 22. Estado final de entrega
 
-Este repositorio se encuentra en una fase activa de desarrollo, con una base de datos ya montada, varias verticales cerradas y una primera capa IA integrada de extremo a extremo.
-
-El estado actual puede resumirse así:
+El proyecto queda en el siguiente estado:
 
 ```text
 Datos operativos Sevilla / Google / OSM
 → base canónica place/review/geografía
 
 Yelp prototype corpus
-→ módulo IA experimental
+→ módulo IA experimental inicial
 → resultados cargados en PostgreSQL
 → ranking yelp_prototype consultable
+
+Sevilla IA v2
+→ modelos entrenados
+→ inferencia local
+→ señales place-dish
+→ ranking Hidden Gems Sevilla v2
+→ comparación v1/v2
+→ dashboard final
 ```
 
-El ranking IA actual no es todavía el ranking final de Sevilla por barrios. Es un prototipo validado sobre Yelp que demuestra que la arquitectura funciona:
+El ranking IA v2 no se marca como producción:
 
 ```text
-review
-→ dish_mention
-→ dish_mention_sentiment
-→ dish_place_signal
-→ hidden_gem_candidate
-→ vistas SQL
-→ consultas demo
+is_production_ready = false
 ```
 
-El siguiente objetivo del proyecto es adaptar esta cadena a reviews reales de Sevilla y producir rankings por barrio con:
+Esto es una decisión deliberada. El sistema demuestra el funcionamiento técnico completo, pero antes de considerarlo productivo harían falta validación humana, más datos, control de calidad continuo y automatización operativa.
+
+Resumen final:
 
 ```text
-ranking_scope = sevilla_neighborhood
-is_production_ready = true
-neighborhood_id != null
+Estado del PI: cerrado para entrega académica.
+Estado técnico: MVP avanzado / prototipo analítico funcional.
+Estado producción: no producción, pendiente de validación humana y escalado.
 ```
+
+
+Realizado por Iván Arteaga Cordero

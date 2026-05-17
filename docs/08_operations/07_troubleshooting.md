@@ -1,5 +1,8 @@
 # 07. Troubleshooting operativo
 
+
+
+
 ## 1. Objetivo del documento
 
 Este documento recoge problemas frecuentes detectados durante el desarrollo y operación de **Hidden Gems**, junto con sus causas probables y soluciones recomendadas.
@@ -958,3 +961,128 @@ no avanzar con checks fallidos
 Hidden Gems ya cuenta con suficientes scripts de comprobación para que casi ningún fallo deba resolverse a ciegas.
 
 Cuando aparezca un error nuevo, la solución recomendada es incorporarlo a este documento para que el runbook operativo siga creciendo con el proyecto.
+
+---
+
+## 16. Problemas detectados en Sevilla IA v2
+
+### 16.1. `p.location` no existe en PostgreSQL
+
+Síntoma:
+
+```text
+psycopg2.errors.UndefinedColumn: no existe la columna p.location
+```
+
+Causa: el script intentaba leer una columna `location`, pero el modelo usa columnas reales como `geom_point`, `latitude` y `longitude`, o bien las coordenadas ya están en exports anteriores.
+
+Solución: actualizar la SQL o usar `--coordinates-path` en el export v2.
+
+---
+
+### 16.2. `StreamlitDuplicateElementId`
+
+Síntoma:
+
+```text
+streamlit.errors.StreamlitDuplicateElementId
+```
+
+Solución:
+
+```python
+st.plotly_chart(fig, use_container_width=True, key="unique_chart_key")
+```
+
+Cada gráfico debe tener `key` única.
+
+---
+
+### 16.3. UUID no serializable en JSONL
+
+Síntoma:
+
+```text
+TypeError: Object of type UUID is not JSON serializable
+```
+
+Solución: convertir UUID, Timestamp, numpy types y NaN a tipos nativos antes de escribir JSONL.
+
+```python
+json.dumps(to_builtin(row), ensure_ascii=False, allow_nan=False)
+```
+
+`to_builtin` debe convertir `uuid.UUID` a `str`.
+
+---
+
+### 16.4. Reranker lento en CPU
+
+Síntoma: el script parece quedarse parado durante generación/scoring de candidatos.
+
+Referencia observada:
+
+```text
+2.965 filas → 19.482 pares candidato
+```
+
+Solución:
+
+```text
+- añadir logs de progreso;
+- construir índice rápido de catálogo;
+- reducir candidatos por mención si es necesario;
+- usar GPU si está disponible;
+- no interrumpir mientras el contador avance.
+```
+
+---
+
+### 16.5. `DataParallel` no tiene atributo `config`
+
+Solución:
+
+```python
+base_model = model.module if hasattr(model, "module") else model
+num_labels = base_model.config.num_labels
+```
+
+---
+
+### 16.6. `fillna` con `Index` en pandas
+
+Síntoma:
+
+```text
+TypeError: "value" parameter must be a scalar, dict or Series, but you passed a "Index"
+```
+
+Solución:
+
+```python
+fallback = pd.Series(usable_df.index.astype(str), index=usable_df.index)
+usable_df["group_id"] = usable_df[COL_REVIEW_ID].astype("string").fillna(fallback).astype(str)
+```
+
+---
+
+### 16.7. Dashboard v2 sin coordenadas reales
+
+Solución:
+
+```powershell
+python -m scripts.export_sevilla_dashboard_data_v2 `
+  --coordinates-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --output-dir data/artifacts/ai/sevilla/dashboard_v2 `
+  --expected-selected 268 `
+  --strict
+```
+
+Comprobar que existen:
+
+```text
+latitude_std
+longitude_std
+coordinate_source_std
+place_coordinates.csv
+```

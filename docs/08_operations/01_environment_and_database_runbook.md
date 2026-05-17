@@ -1,5 +1,8 @@
 # 01. Environment and Database Runbook
 
+
+
+
 ## 1. Propósito
 
 Este runbook explica cómo preparar el entorno local necesario para ejecutar **Hidden Gems Pipeline**.
@@ -504,4 +507,66 @@ Una vez completado este runbook, el siguiente paso natural es seguir el document
 
 ```text
 02_data_ingestion_runbook.md
+```
+
+---
+
+## 20. Actualización final: entorno para Sevilla IA v2 y dashboards
+
+La fase final añade ejecución de modelos locales y dashboards Streamlit. Además de las dependencias base, revisar que `requirements.txt` incluya o permita instalar:
+
+```text
+streamlit
+plotly
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+transformers
+torch
+datasets
+scikit-learn
+rapidfuzz
+```
+
+Si el dashboard falla por dependencias:
+
+```powershell
+pip install -r requirements.txt
+pip install streamlit plotly pandas
+```
+
+Los modelos entrenados deben estar localmente en `models/`, pero no se suben a Git:
+
+```text
+models/sevilla_dish_ner_beto_v1_2/
+models/sevilla_dish_normalization_reranker_beto_v1/
+models/sevilla_mention_sentiment_absa_beto_v1/
+```
+
+Smoke test final recomendado:
+
+```powershell
+.venv\Scripts\activate
+python -m scripts.check_db_connection
+python -m scripts.check_schema
+streamlit run dashboard/streamlit_sevilla_v2_app.py
+```
+
+Para regenerar el export final del dashboard v2:
+
+```powershell
+python -m scripts.export_sevilla_dashboard_data_v2 `
+  --ranking-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_ranking_v2.jsonl `
+  --selected-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_selected_v2.jsonl `
+  --signals-path data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/sevilla_place_dish_signals_v2.jsonl `
+  --mentions-path data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/sevilla_dish_mentions_with_absa_sentiment_v1.jsonl `
+  --comparison-dir data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison `
+  --coordinates-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --output-dir data/artifacts/ai/sevilla/dashboard_v2 `
+  --expected-selected 268 `
+  --include-mentions `
+  --examples-per-candidate 5 `
+  --include-full-review-text `
+  --strict
 ```

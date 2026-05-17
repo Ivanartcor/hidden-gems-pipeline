@@ -1,9 +1,6 @@
 # 44. Vertical Yelp Open Dataset
 
 
-> **Nota de actualización (piloto IA Sevilla):** este documento conserva la vertical Yelp completa como corpus/prototipo IA. Después de esta fase, el flujo fue trasladado a reviews reales de Google Places Sevilla en modo piloto. Yelp sigue siendo histórico y útil como base experimental, pero la fase local `sevilla_pilot` ya se ha ejecutado y se documenta como avance posterior.
-
-
 ## 1. Objetivo de la vertical
 
 La vertical **Yelp Open Dataset** tiene como objetivo transformar un snapshot local de Yelp en un corpus gastronómico útil para las fases de IA de Hidden Gems.
@@ -628,118 +625,93 @@ La siguiente fase del proyecto será trasladar este flujo a Google Reviews local
 
 ---
 
-## 25. Actualización posterior: relación con el piloto IA Sevilla completado
+## 26. Actualización final: posición de Yelp tras Sevilla IA v2
 
-Después de cerrar la vertical Yelp como corpus y prototipo IA, el proyecto trasladó la arquitectura desarrollada a reviews reales de Google Places Sevilla.
+Después del piloto Sevilla v1, el proyecto avanzó hacia una fase más potente: **Sevilla IA v2**. Esta fase no sustituye la utilidad histórica de Yelp, pero sí desplaza el foco principal hacia datos locales de Sevilla.
 
-Esta actualización no cambia el papel de Yelp: Yelp sigue siendo corpus externo y prototipo, no producción Sevilla. Lo que cambia es que el siguiente paso descrito anteriormente ya se ha ejecutado en modo piloto local.
-
-### 25.1. Flujo trasladado desde Yelp a Sevilla
-
-El flujo validado originalmente con Yelp:
+Yelp queda como:
 
 ```text
-reviews gastronómicas
-→ detección de platos
-→ normalización
-→ sentimiento por mención
-→ señales agregadas
-→ ranking Hidden Gems
-→ consultas SQL
+corpus externo
+benchmark IA
+prototipo histórico de integración
+fuente de aprendizaje para el diseño del módulo IA
 ```
 
-se aplicó después sobre reviews locales de Sevilla:
+No queda como:
+
+```text
+fuente local de Sevilla
+ranking productivo
+base del dashboard Sevilla IA v2
+```
+
+### 26.1. Qué aportó Yelp al proyecto
+
+Yelp permitió validar tempranamente:
+
+- construcción de corpus NLP;
+- sentimiento débil desde rating;
+- detección de platos;
+- normalización de platos;
+- agregación de señales;
+- ranking prototipo;
+- loaders IA en PostgreSQL;
+- vistas y consulta demo.
+
+Gracias a esta fase, el proyecto pudo construir la arquitectura IA antes de aplicarla a Sevilla.
+
+### 26.2. Qué cambia con Sevilla IA v2
+
+La fase Sevilla IA v2 utiliza una cadena más específica y local:
 
 ```text
 Google Places Reviews Sevilla
-→ export_reviews_for_ai.py
-→ notebooks 12–17
-→ dish_mention
-→ dish_mention_sentiment
-→ dish_place_signal
-→ hidden_gem_candidate
-→ query_sevilla_hidden_gems_demo.py
+→ datasets extendidos de anotación
+→ modelo NER de platos
+→ modelo de normalización/reranker
+→ modelo ABSA de sentimiento por mención
+→ señales place-dish v2
+→ ranking Sevilla v2
+→ dashboard final
 ```
 
-### 25.2. Resultado del piloto Sevilla
+Por tanto, Yelp ya no es la fuente que determina el ranking final del proyecto entregado.
 
-El piloto Sevilla produjo y cargó en PostgreSQL:
+### 26.3. Diferencia actual entre Yelp y Sevilla IA v2
 
-```text
-dish = 190
-dish_alias = 243
-dish_mention = 2.979
-dish_mention_sentiment = 2.979
-dish_place_signal = 2.212
-hidden_gem_candidate = 256
-hidden_gem_selected = 150
-```
-
-El check final confirmó:
-
-```text
-ready_for_sevilla_pilot_queries = true
-errors = []
-warnings = []
-```
-
-### 25.3. Diferencia entre Yelp prototype y Sevilla pilot
-
-| Aspecto | Yelp Prototype | Sevilla Pilot |
+| Aspecto | Yelp prototype | Sevilla IA v2 |
 |---|---|---|
-| Fuente | Yelp Open Dataset | Google Places Reviews |
+| Fuente textual | Yelp Open Dataset | Google Places Reviews Sevilla |
 | Idioma dominante | Inglés | Español / multilingüe local |
 | Geografía Sevilla | No productiva | Sí |
-| Barrio / distrito | No productivo | Sí |
-| Ranking scope en artefacto | `yelp_prototype` | `sevilla_pilot` |
-| Ranking scope en DB | `yelp_prototype` | `other` por constraint actual |
-| Production ready | No | No, piloto |
-| Uso principal | Validar arquitectura IA | Validar flujo local Sevilla |
+| Modelos finales del PI | Prototipo/base | NER + reranker + ABSA |
+| Ranking | `yelp_prototype` | `sevilla_hidden_gems_ranking_v2` |
+| Dashboard local final | No | Sí |
+| Production ready | No | No, experimental validado |
 
-### 25.4. Por qué Yelp sigue siendo relevante
+### 26.4. Estado final de Yelp
 
-Aunque el piloto Sevilla ya existe, Yelp sigue aportando valor como:
-
-```text
-corpus amplio
-baseline de modelos
-histórico experimental
-referencia de arquitectura IA
-validación de loaders generales
-comparación con datos locales
-```
-
-Sin embargo, las decisiones de producto deben basarse en el piloto Sevilla, no en el ranking Yelp.
-
-### 25.5. Nuevo estado del proyecto respecto a Yelp
-
-El estado actualizado queda así:
+Para la entrega académica, Yelp queda cerrado como vertical de apoyo:
 
 ```text
-[OK] Yelp usado como corpus amplio
-[OK] Yelp usado para validar integración IA completa
-[OK] Ranking yelp_prototype cargado y consultable
-[OK] Flujo IA trasladado a Google Reviews Sevilla en modo piloto
-[OK] Sevilla_pilot generado, cargado y validado
-[OK] Yelp deja de ser la fase siguiente principal
+[OK] Dataset perfilado
+[OK] Corpus NLP creado
+[OK] Prototipo IA integrado
+[OK] Ranking yelp_prototype consultable
+[OK] Útil como benchmark y antecedente técnico
+[OK] Separado del ranking Sevilla IA v2
 ```
 
-### 25.6. Próximos pasos actualizados
+### 26.5. Uso futuro recomendado
 
-Los pasos que antes aparecían como adaptación futura a Google Reviews ya se han cumplido en modo piloto. A partir de ahora, las líneas recomendadas son:
+En una posible fase posterior a la entrega, Yelp puede seguir siendo útil para:
 
-```text
-1. mantener Yelp como corpus de apoyo;
-2. usar Sevilla pilot como base de demo local;
-3. construir dashboard sobre resultados Sevilla;
-4. analizar errores del ranking local;
-5. mejorar reglas/modelos solo si el dashboard evidencia necesidad;
-6. valorar un futuro ranking productivo con mayor validación.
-```
+- comparar errores frente a datos locales;
+- ampliar ejemplos de entrenamiento si se controla el dominio e idioma;
+- mantener benchmarks;
+- probar variantes de modelos;
+- explicar la evolución desde prototipo externo hasta piloto local.
 
-### 25.7. Conclusión actualizada
-
-Yelp cumplió su función principal: permitir desarrollar y probar la inteligencia textual de Hidden Gems antes de aplicarla a datos locales.
-
-La fase posterior ya confirma que esa arquitectura puede ejecutarse sobre Sevilla. Por tanto, Yelp queda como pilar experimental y de comparación, mientras que el foco operativo pasa al piloto local generado con Google Places Reviews.
+No debería mezclarse con el ranking local Sevilla sin una razón técnica clara y una separación explícita de scope.
 

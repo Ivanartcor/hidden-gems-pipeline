@@ -1,5 +1,6 @@
 # 00. Operations Index
 
+
 ## 1. Propósito del bloque `08_operations`
 
 Este bloque documenta la **operación práctica** del proyecto **Hidden Gems Pipeline**.
@@ -17,7 +18,8 @@ docs/04_sources/          → fuentes de datos
 docs/05_verticals/        → detalle técnico por vertical
 docs/10_ai_module/        → desarrollo experimental IA
 docs/11_ai_integration/   → integración IA en PostgreSQL
-docs/12_sevilla_ai_pilot/ → piloto IA Sevilla end-to-end
+docs/12_sevilla_ai_pilot/ → piloto IA Sevilla v1 end-to-end
+docs/13_sevilla_ai_v2/    → fase final Sevilla IA v2 con modelos entrenados
 
 docs/08_operations/       → cómo ejecutar y mantener el sistema
 ```
@@ -110,10 +112,11 @@ La carpeta `docs/08_operations/` se organiza como un conjunto de runbooks.
 | `07_troubleshooting.md` | Errores frecuentes y soluciones aplicadas durante el proyecto. |
 | `08_git_and_delivery_workflow.md` | Flujo recomendado de Git, commits y preparación de entregas. |
 
-Más adelante, cuando exista dashboard, se añadirá:
+Actualmente también existe documentación operativa de dashboard y entrega final:
 
 ```text
 09_dashboard_operations.md
+10_final_academic_delivery_runbook.md
 ```
 
 ---
@@ -422,3 +425,54 @@ Después de estos primeros documentos, la operación debe completarse con:
 ```
 
 El objetivo es que cualquier ejecución importante del proyecto tenga una ruta operativa clara y reproducible.
+
+
+---
+
+## 12. Actualización operativa final: Sevilla IA v2
+
+Además del piloto `sevilla_pilot` v1, la entrega académica incorpora una fase final **Sevilla IA v2**.
+
+Flujo final:
+
+```text
+Google Places Reviews Sevilla
+→ datasets ampliados
+→ entrenamiento de modelos en Kaggle
+→ NER de platos v1.2
+→ normalización/entity linking con reranker
+→ sentimiento por mención / ABSA
+→ señales place-dish v2
+→ ranking Hidden Gems Sevilla v2
+→ comparación v1 vs v2
+→ export dashboard_v2
+→ dashboard Streamlit final
+```
+
+Resultados de referencia:
+
+```text
+ranking_v2_candidates_scored = 2.335
+selected_hidden_gem_candidates_v2 = 268
+selected_places_v2 = 198
+selected_dishes_v2 = 40
+selected_neighborhoods_v2 = 67
+selected_districts_v2 = 11
+matched_candidates_v1_v2 = 119
+v1_coverage_in_v2 = 79,3 %
+```
+
+Nuevos documentos operativos a considerar:
+
+| Archivo | Propósito |
+|---|---|
+| `09_dashboard_operations.md` | Operación de dashboards Sevilla v1, Yelp y Sevilla IA v2. |
+| `10_final_academic_delivery_runbook.md` | Checklist final de entrega académica. |
+
+Estado final recomendado:
+
+```text
+Estado académico: cerrado para entrega.
+Estado técnico: MVP avanzado / prototipo analítico funcional.
+Estado producción: no producción.
+```

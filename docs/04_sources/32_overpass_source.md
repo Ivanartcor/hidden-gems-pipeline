@@ -608,3 +608,57 @@ Aunque sus datos no son perfectos, la arquitectura del pipeline permite tratarlo
 
 Esta vertical demuestra que el sistema ya puede pasar de una fuente externa real a entidades internas utilizables para análisis por barrio.
 
+
+
+---
+
+## 21. Relación con Sevilla IA v2
+
+En la fase Sevilla IA v2, Overpass mantiene su papel como fuente abierta de apoyo para la base de locales.
+
+La cadena IA v2 no se entrena directamente con datos de Overpass, porque el elemento textual principal procede de reseñas. Sin embargo, Overpass sigue siendo relevante porque:
+
+- ayuda a construir una base abierta inicial de locales gastronómicos;
+- aporta coordenadas y tags útiles;
+- permite contrastar cobertura frente a Google Places;
+- refuerza el enfoque multisource del proyecto;
+- demuestra que el modelo canónico no depende de una única API comercial.
+
+La relación actual puede resumirse así:
+
+```text
+Overpass
+→ place / place_source_ref / categorías / barrio
+→ base canónica multisource
+→ contexto para explotación territorial
+```
+
+Mientras que la IA v2 se apoya principalmente en:
+
+```text
+Google Places Reviews
+→ menciones / sentimiento / ranking
+```
+
+Esto confirma la separación correcta entre fuentes de locales, fuentes de reviews y artefactos derivados de IA.
+
+---
+
+## 22. Estado final en la entrega académica
+
+La vertical Overpass queda cerrada como vertical de negocio abierta y reproducible.
+
+Estado:
+
+```text
+[OK] ingesta raw
+[OK] perfilado
+[OK] transformación a candidatos comunes
+[OK] QA staging
+[OK] deduplicación intra-fuente
+[OK] importación canónica
+[OK] check post-importación
+[OK] soporte al modelo multisource
+```
+
+Para producción futura podría mejorarse el matching inter-fuente entre Overpass y Google Places, pero no es necesario para cerrar la entrega académica.

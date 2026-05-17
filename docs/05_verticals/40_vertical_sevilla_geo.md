@@ -1,5 +1,6 @@
 # 40. Vertical Sevilla Geo
 
+
 ## 1. Introducción
 
 La vertical **Sevilla Geo** es la vertical encargada de incorporar al sistema la base territorial oficial utilizada por Hidden Gems.
@@ -400,4 +401,67 @@ La vertical Sevilla Geo es una pieza base del pipeline de Hidden Gems.
 Su función es proporcionar una referencia territorial fiable, trazable y validada. Sin ella, el sistema podría almacenar locales, pero no podría analizarlos correctamente por barrio.
 
 Esta vertical convierte la dimensión geográfica en una parte estructural del modelo de datos y prepara el terreno para el análisis gastronómico territorial.
+
+---
+
+## 21. Actualización final: papel de Sevilla Geo en Sevilla IA v2
+
+Tras las primeras fases de adquisición e integración, la vertical Sevilla Geo ha quedado confirmada como una pieza estructural del proyecto final. Su aportación no se limita a permitir la carga de locales: también permite interpretar, filtrar y visualizar los resultados del ranking Hidden Gems por territorio.
+
+En la fase **Sevilla IA v2**, la geografía oficial se utiliza de forma directa o indirecta para:
+
+- asociar locales de Google Places a barrios y distritos;
+- agregar señales local-plato con contexto territorial;
+- generar rankings por distrito y por barrio;
+- calcular resúmenes territoriales para el dashboard;
+- comparar la cobertura territorial del ranking v1 frente al ranking v2;
+- representar visualmente los resultados en el mapa del dashboard Sevilla IA v2.
+
+### 21.1. Resultados territoriales del ranking v2
+
+La fase final Sevilla IA v2 generó un ranking experimental con:
+
+```text
+selected_candidates_v2 = 268
+selected_places_v2 = 198
+selected_dishes_v2 = 40
+selected_neighborhoods_v2 = 67
+selected_districts_v2 = 11
+```
+
+Estos datos demuestran que la capa geográfica no se ha utilizado solo como referencia pasiva, sino como dimensión analítica real del producto.
+
+### 21.2. Relación con el dashboard
+
+El dashboard final `dashboard/streamlit_sevilla_v2_app.py` consume el export:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+y utiliza información territorial para:
+
+- filtros por distrito;
+- filtros por barrio;
+- rankings territoriales;
+- summaries por distrito y barrio;
+- visualización en mapa;
+- análisis de cobertura v1 vs v2.
+
+Cuando el export incluye coordenadas reales de locales, el mapa puede representar puntos reales. Si no hay coordenadas para alguna entidad, la lógica del dashboard puede apoyarse en centroides o aproximaciones territoriales.
+
+### 21.3. Estado final de la vertical
+
+Para la entrega académica, Sevilla Geo queda cerrada como vertical estable:
+
+```text
+[OK] Base territorial cargada
+[OK] Barrios y distritos disponibles
+[OK] Integración con asignación de locales
+[OK] Uso en ranking Sevilla pilot v1
+[OK] Uso en ranking Sevilla IA v2
+[OK] Uso en dashboard final
+```
+
+No se requiere modificar esta vertical para la entrega. Sus mejoras futuras serían de refinamiento, como versionado geográfico más avanzado, validaciones topológicas o revisión de cambios administrativos.
 

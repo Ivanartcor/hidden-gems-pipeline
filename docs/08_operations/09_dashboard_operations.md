@@ -1,16 +1,20 @@
 # 09. Dashboard operations
 
+
+
+
 ## 1. Propósito
 
 Este documento describe cómo operar los dashboards Streamlit de Hidden Gems.
 
 Los dashboards no sustituyen al pipeline ni a PostgreSQL. Son una capa de visualización para explorar resultados ya generados, cargados, validados y exportados.
 
-Actualmente existen dos dashboards:
+Actualmente existen tres dashboards:
 
 ```text
-1. Dashboard Sevilla Pilot
+1. Dashboard Sevilla Pilot v1
 2. Dashboard Yelp Prototype
+3. Dashboard Sevilla IA v2
 ```
 
 La lógica general es:
@@ -513,3 +517,153 @@ Cuando cambien datos, ranking o scripts:
 6. Crear API sobre los mismos datos del dashboard.
 ```
 
+
+
+---
+
+## 16. Dashboard Sevilla IA v2
+
+Archivo final:
+
+```text
+dashboard/streamlit_sevilla_v2_app.py
+```
+
+Datos esperados:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Objetivo:
+
+```text
+Mostrar el ranking IA v2 experimental basado en modelos entrenados, con comparación v1/v2, mapa, análisis territorial, detalle de reseñas y explicación de puntuación.
+```
+
+Estado:
+
+```text
+ranking_version = sevilla_hidden_gems_ranking_v2
+selected_candidates = 268
+selected_places = 198
+selected_dishes = 40
+selected_neighborhoods = 67
+selected_districts = 11
+is_production_ready = false
+```
+
+---
+
+## 17. Export dashboard Sevilla IA v2
+
+Comando completo con menciones, reseñas y coordenadas reales:
+
+```powershell
+python -m scripts.export_sevilla_dashboard_data_v2 `
+  --ranking-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_ranking_v2.jsonl `
+  --selected-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_selected_v2.jsonl `
+  --signals-path data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/sevilla_place_dish_signals_v2.jsonl `
+  --mentions-path data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/sevilla_dish_mentions_with_absa_sentiment_v1.jsonl `
+  --comparison-dir data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison `
+  --coordinates-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --output-dir data/artifacts/ai/sevilla/dashboard_v2 `
+  --expected-selected 268 `
+  --include-mentions `
+  --examples-per-candidate 5 `
+  --include-full-review-text `
+  --strict
+```
+
+Checks esperados en `dashboard_export_summary.json`:
+
+```text
+has_ranking = true
+has_selected_candidates = true
+expected_selected_matches = true
+score_in_0_100 = true
+selected_have_place = true
+selected_have_dish = true
+selected_have_neighborhood = true
+selected_have_district = true
+comparison_loaded = true
+all_selected_are_not_production_ready = true
+```
+
+---
+
+## 18. Ejecución de Sevilla IA v2
+
+```powershell
+streamlit run dashboard/streamlit_sevilla_v2_app.py
+```
+
+Secciones principales:
+
+```text
+1. Resumen ejecutivo.
+2. Ranking IA v2.
+3. Análisis territorial.
+4. Mapa con coordenadas reales o fallback territorial.
+5. Análisis de platos y locales.
+6. Evidencia y calidad.
+7. Comparativa v1 vs v2.
+8. Reseñas y menciones por local/plato.
+9. Explicación de hidden_gem_score_v2.
+10. Contrato de datos y artefactos.
+```
+
+---
+
+## 19. Archivos generados por dashboard_v2
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+├── dashboard_metadata.json
+├── kpi_summary.json
+├── ranking_detail.csv
+├── selected_candidates.csv
+├── top_global.csv
+├── top_by_district.csv
+├── top_by_neighborhood.csv
+├── top_by_dish.csv
+├── district_summary.csv
+├── neighborhood_summary.csv
+├── dish_summary.csv
+├── place_summary.csv
+├── tier_summary.csv
+├── evidence_summary.csv
+├── quality_summary.csv
+├── filter_options.json
+├── data_contract.json
+├── dashboard_export_summary.json
+├── mention_examples.csv
+├── place_coordinates.csv
+└── comparison/
+```
+
+---
+
+## 20. Qué no subir a Git en dashboard_v2
+
+No versionar:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/*.csv
+data/artifacts/ai/sevilla/dashboard_v2/*.json
+data/artifacts/ai/sevilla/dashboard_v2/comparison/*.csv
+```
+
+Especialmente si contiene reseñas completas:
+
+```text
+mention_examples.csv
+```
+
+Sí versionar:
+
+```text
+dashboard/streamlit_sevilla_v2_app.py
+scripts/export_sevilla_dashboard_data_v2.py
+docs/08_operations/09_dashboard_operations.md
+```

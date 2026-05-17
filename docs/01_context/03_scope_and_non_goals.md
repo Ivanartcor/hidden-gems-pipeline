@@ -1,10 +1,11 @@
 # 03. Alcance y no objetivos
 
+
 ## 1. Introducción
 
 Uno de los aspectos más importantes en este proyecto es definir con claridad qué se pretende construir en esta fase y qué queda fuera de alcance.
 
-Dado que el trabajo forma parte del ecosistema de **Hidden Gems** y comparte relación con el Proyecto Intermodular, existe el riesgo de intentar abarcar demasiadas capas a la vez: adquisición, modelado, calidad, NLP, ranking, interfaz, API y explotación analítica completa.
+Dado que el trabajo forma parte del ecosistema de **Hidden Gems** y comparte relación con el Proyecto Integrado, existe el riesgo de intentar abarcar demasiadas capas a la vez: adquisición, modelado, calidad, NLP, ranking, dashboard, API y explotación analítica completa.
 
 Sin una delimitación explícita, eso llevaría a una solución dispersa, difícil de implementar y más difícil todavía de mantener.
 
@@ -14,7 +15,7 @@ Por ello, este documento fija el alcance real del proyecto y deja por escrito lo
 
 ## 2. Alcance del proyecto
 
-El alcance de esta fase se centra en construir la **base técnica de adquisición, estructuración, trazabilidad, integración IA y consulta piloto** para Hidden Gems.
+El alcance de esta fase se centra en construir la **base técnica de adquisición, estructuración, trazabilidad, integración IA, ranking y explotación analítica piloto** para Hidden Gems.
 
 En términos prácticos, esto incluye:
 
@@ -67,9 +68,9 @@ reseñas
 
 Este prototipo permite validar arquitectura, modelo de datos, loaders, checks y vistas.
 
-### 2.9. Piloto IA sobre reviews reales de Sevilla
+### 2.9. Piloto IA sobre reviews reales de Sevilla v1
 
-También forma parte del alcance actual la aplicación del flujo IA a datos reales locales de Sevilla procedentes de Google Places Reviews.
+También forma parte del alcance la aplicación del flujo IA a datos reales locales de Sevilla procedentes de Google Places Reviews.
 
 Este piloto cubre:
 
@@ -85,17 +86,47 @@ Google Reviews Sevilla
 → carga en PostgreSQL
 → check de integridad
 → consulta demo
+→ dashboard v1
 ```
 
 El piloto genera resultados consultables, pero todavía no se considera producto final ni producción.
 
-### 2.10. Integración IA en PostgreSQL
+### 2.10. Mejora IA Sevilla v2
+
+Forma parte del alcance final la mejora del piloto mediante modelos entrenados e inferencia local:
+
+```text
+reviews Sevilla
+→ NER entrenado
+→ combinación híbrido + NER
+→ normalización/entity linking con reranker
+→ sentimiento por mención / ABSA
+→ señales place-dish v2
+→ ranking Hidden Gems Sevilla v2
+→ comparación v1 vs v2
+```
+
+Esta fase permite demostrar que el sistema no depende únicamente de reglas, sino que puede incorporar modelos especializados para mejorar la extracción, normalización y valoración de menciones gastronómicas.
+
+### 2.11. Integración IA en PostgreSQL
 
 Forma parte del alcance la persistencia de resultados IA en PostgreSQL mediante tablas específicas, loaders, checks, vistas SQL y scripts de consulta.
 
-### 2.11. Documentación técnica del sistema
+La fase v2 se mantiene principalmente como capa de artefactos y dashboard, sin presentarse como ranking productivo definitivo cargado en producción.
 
-Se documenta la arquitectura, el contexto, el modelo de datos, las fuentes, las verticales, el módulo IA, la integración IA, el piloto Sevilla y los próximos pasos del proyecto de forma ordenada y mantenible.
+### 2.12. Dashboards de explotación
+
+Forman parte del alcance dashboards Streamlit para explorar resultados:
+
+- dashboard Sevilla v1;
+- dashboard Yelp;
+- dashboard Sevilla IA v2.
+
+El dashboard Sevilla IA v2 incluye KPIs, ranking, análisis territorial, mapa, platos/locales, evidencia, calidad, comparación v1/v2, detalle de reseñas y explicación de puntuación.
+
+### 2.13. Documentación técnica del sistema
+
+Se documenta la arquitectura, el contexto, el modelo de datos, las fuentes, las verticales, el módulo IA, la integración IA, el piloto Sevilla, la fase Sevilla IA v2 y los próximos pasos del proyecto de forma ordenada y mantenible.
 
 ---
 
@@ -116,9 +147,15 @@ En esta fase, el proyecto sí se compromete a:
 - cargar catálogo de platos, aliases, menciones, sentimientos, señales y ranking;
 - validar integridad de la capa IA mediante checks;
 - crear vistas y scripts demo para consulta;
+- entrenar modelos para detección, normalización y sentimiento;
+- construir señales local-plato v2;
+- crear ranking Hidden Gems Sevilla IA v2;
+- comparar ranking v1 vs ranking v2;
+- exportar datos para dashboard;
+- crear dashboards funcionales;
 - documentar el marco técnico y conceptual del proyecto.
 
-En otras palabras, esta fase construye la **infraestructura de datos, trazabilidad, IA y explotación piloto** sobre la que se apoyarán el resto de capas de Hidden Gems.
+En otras palabras, esta fase construye la **infraestructura de datos, trazabilidad, IA y explotación piloto/analítica** sobre la que se apoyarán el resto de capas de Hidden Gems.
 
 ---
 
@@ -130,9 +167,11 @@ Para mantener un alcance realista, este trabajo **no pretende** desarrollar en e
 
 No se desarrolla todavía una plataforma completa orientada a usuario final ni una experiencia de producto cerrada.
 
+Los dashboards Streamlit sirven como herramienta analítica y demostración técnica, no como aplicación pública definitiva.
+
 ### 4.2. Ranking productivo definitivo por barrio
 
-Aunque existe un ranking prototipo sobre Yelp y un ranking piloto local sobre Sevilla, no se considera todavía un ranking productivo final.
+Aunque existe un ranking prototipo sobre Yelp, un ranking piloto local sobre Sevilla y un ranking IA v2, no se considera todavía un ranking productivo final.
 
 El prototipo Yelp está marcado como:
 
@@ -154,17 +193,32 @@ db_ranking_scope = other
 
 por una restricción actual del DDL.
 
-Ambos se mantienen con:
+El ranking Sevilla IA v2 se considera:
+
+```text
+ranking experimental asistido por modelos
+```
+
+Todos se mantienen con:
 
 ```text
 is_production_ready = false
 ```
 
-El ranking productivo requerirá revisión de calidad, criterios finales de publicación, posible ajuste de scores, dashboard/API y validación adicional.
+El ranking productivo requerirá revisión de calidad, criterios finales de publicación, posible ajuste de scores, validación humana, automatización y despliegue.
 
-### 4.3. Sistema IA final entrenado para español
+### 4.3. Sistema IA final de producción
 
-La capa IA Sevilla actual usa un enfoque híbrido de reglas, lexicones, normalización local y scoring. Es válida para piloto, pero no se considera aún una solución final entrenada, evaluada y optimizada con un modelo específico en español.
+La fase IA v2 entrena y aplica modelos útiles para el piloto, pero no se presenta como sistema IA final de producción.
+
+Quedan fuera de alcance:
+
+- validación humana masiva;
+- evaluación continua en producción;
+- monitorización de drift;
+- descarga automática de modelos desde almacenamiento externo;
+- actualización periódica automatizada;
+- serving de modelos como servicio.
 
 ### 4.4. Recomendador personalizado
 
@@ -178,13 +232,13 @@ El sistema se orienta a procesamiento por lotes. No se implementa una arquitectu
 
 No forma parte del alcance desplegar una solución basada en Spark, Kafka, microservicios complejos o infraestructura sobredimensionada para el estado actual del proyecto.
 
-### 4.7. Dashboard definitivo
-
-El dashboard se plantea como siguiente fase de explotación, pero todavía no forma parte del estado cerrado documentado en este bloque.
-
-### 4.8. API pública o backend de producto
+### 4.7. API pública o backend de producto
 
 Aunque FastAPI se contempla como exposición futura, no forma parte de esta fase construir una API pública completa.
+
+### 4.8. Despliegue público
+
+No se incluye despliegue público estable, dominio, hosting productivo, CI/CD completo ni publicación abierta del producto.
 
 ---
 
@@ -201,7 +255,9 @@ Además de lo anterior, se fijan como **no objetivos** de esta fase:
 - utilizar Yelp como fuente operativa real de Sevilla;
 - considerar el ranking Yelp como resultado final de producto;
 - considerar el ranking `sevilla_pilot` como producción sin revisión posterior;
-- entrenar obligatoriamente modelos complejos antes de validar el dashboard y el uso real.
+- considerar el ranking IA v2 como producción sin validación humana;
+- mantener los modelos entrenados dentro del repositorio Git;
+- resolver todavía la estrategia definitiva de despliegue de modelos y artefactos pesados.
 
 El proyecto no busca volumen por sí mismo, sino **estructura, consistencia, trazabilidad y capacidad de evolución**.
 
@@ -211,18 +267,19 @@ El proyecto no busca volumen por sí mismo, sino **estructura, consistencia, tra
 
 Es importante entender que este proyecto forma parte del ecosistema de Hidden Gems, pero no agota su alcance.
 
-Hidden Gems, como PI, tiene una ambición más amplia, que incluye posteriormente:
+Hidden Gems, como PI y posible producto futuro, tiene una ambición más amplia, que incluye posteriormente:
 
 - explotación analítica avanzada;
 - señalización de valor gastronómico real;
 - interpretación textual más rica;
 - ranking por barrio en Sevilla;
 - API o capa de servicio;
-- dashboard o interfaz de consulta;
-- posible producto orientado a usuario;
-- mejora de modelos IA en español o multilingües.
+- dashboard o interfaz de consulta orientada a usuario;
+- posible producto público;
+- mejora continua de modelos IA en español o multilingües;
+- validación humana y feedback de usuarios.
 
-Esta fase, sin embargo, se centra en la **infraestructura de adquisición, modelado, trazabilidad, IA piloto y consulta técnica**, porque es la pieza que hace viables todas las siguientes.
+Esta fase, sin embargo, se centra en la **infraestructura de adquisición, modelado, trazabilidad, IA aplicada, ranking experimental, dashboard técnico y documentación**, porque es la pieza que hace viables todas las siguientes.
 
 Así, la relación con Hidden Gems queda delimitada de la siguiente forma:
 
@@ -235,7 +292,7 @@ Así, la relación con Hidden Gems queda delimitada de la siguiente forma:
 
 Para evitar desviaciones, toda decisión técnica futura debería responder a esta pregunta:
 
-**¿Contribuye directamente a mejorar la adquisición, trazabilidad, estructuración, calidad, preparación IA o explotación controlada del dato para Hidden Gems?**
+**¿Contribuye directamente a mejorar la adquisición, trazabilidad, estructuración, calidad, preparación IA, ranking o explotación controlada del dato para Hidden Gems?**
 
 Si la respuesta es no, probablemente esa funcionalidad no pertenece a esta fase.
 
@@ -245,8 +302,20 @@ Este criterio ayuda a mantener el foco del proyecto y evita que el desarrollo se
 
 ## 8. Conclusión
 
-El alcance de esta fase está orientado a construir una base sólida de ingeniería de datos, integración IA y explotación piloto para Hidden Gems.
+El alcance de esta fase está orientado a construir una base sólida de ingeniería de datos, integración IA, ranking experimental y explotación analítica para Hidden Gems.
 
-El proyecto sí aborda adquisición, estructuración, geografía, trazabilidad, documentación, corpus NLP, prototipo IA, piloto Sevilla e integración en PostgreSQL, pero no entra todavía en la construcción del producto final, del ranking productivo definitivo ni de la interfaz orientada a usuario.
+El proyecto sí aborda adquisición, estructuración, geografía, trazabilidad, documentación, corpus NLP, prototipo IA, piloto Sevilla, modelos entrenados, ranking v2, comparación y dashboard, pero no entra todavía en la construcción del producto público final, del ranking productivo definitivo ni de una API pública.
 
 Esta delimitación no reduce el valor del proyecto; al contrario, lo hace más realista, más defendible y más útil dentro del desarrollo global de Hidden Gems, ya que garantiza que las siguientes fases se apoyen sobre una infraestructura técnica coherente y mantenible.
+
+El estado final queda definido como:
+
+```text
+Entrega académica: cerrada
+MVP técnico: funcional
+Producción: futura fase pendiente
+```
+
+
+
+Realizado por Iván Arteaga Cordero

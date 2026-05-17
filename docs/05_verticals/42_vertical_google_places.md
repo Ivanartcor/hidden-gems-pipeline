@@ -1,7 +1,6 @@
 # Vertical Google Places
 
-
-> **Nota de actualización (piloto IA Sevilla):** este documento conserva la documentación original de la vertical Google Places y añade el estado posterior alcanzado por el proyecto. La vertical sigue siendo una vertical de adquisición, normalización, deduplicación e importación canónica de locales; no se convierte en una vertical IA. Sin embargo, desde la ejecución del piloto local, Google Places ya ha alimentado un flujo real de Sevilla: recolección ampliada de locales, enriquecimiento con reviews, exportación para IA, generación del ranking `sevilla_pilot`, carga en PostgreSQL y consulta demo. Las secciones históricas sobre “flujo futuro” deben leerse como el diseño que posteriormente se materializó en el piloto documentado en `docs/12_sevilla_ai_pilot/`.
+> **Actualización final — Sevilla IA v2:** este documento conserva la vertical Google Places como vertical de adquisición y consolidación de locales. Además, se actualiza el estado final: Google Places ya no solo alimentó el piloto `sevilla_pilot`, sino también la fase **Sevilla IA v2**, donde las reviews locales sirvieron para entrenar/aplicar modelos, generar señales place-dish v2, construir el ranking Hidden Gems Sevilla v2, compararlo con v1 y exportarlo al dashboard final. La vertical sigue sin ejecutar IA directamente; su papel es aportar locales reales y referencias Google trazables.
 
 
 ## 1. Objetivo de la vertical
@@ -961,152 +960,94 @@ Gracias a esta vertical, Hidden Gems dispone de una base operativa local sobre l
 
 ---
 
-## 26. Actualización posterior: aportación de Google Places al piloto IA Sevilla
+## 27. Actualización final: aportación de Google Places a Sevilla IA v2
 
-Tras la primera versión funcional de esta vertical, Google Places se utilizó en una fase más amplia para alimentar el **piloto IA Sevilla**.
+Después del piloto inicial `sevilla_pilot`, el proyecto evolucionó hacia una fase más avanzada denominada **Sevilla IA v2**. En esta fase, Google Places continuó siendo la fuente operativa principal de locales reales de Sevilla.
 
-Esta actualización no sustituye la documentación anterior: la amplía con el estado real alcanzado posteriormente.
-
-### 26.1. Papel de Google Places en el piloto Sevilla
-
-Google Places actuó como fuente operativa principal para construir una base local de Sevilla formada por:
+El papel de esta vertical en v2 puede resumirse así:
 
 ```text
 Google Places Text Search
 → locales reales de Sevilla
 → place
-→ place_source_ref
-→ categoría
+→ place_source_ref con Google Place ID
 → barrio / distrito
+→ base para Google Places Reviews
+→ entrada indirecta de Sevilla IA v2
 ```
 
-Después, esos locales fueron enriquecidos con la subvertical de reviews:
+La vertical Google Places no ejecuta modelos ni scoring, pero sin ella no existiría la base local necesaria para vincular reseñas, menciones, platos y rankings a locales reales.
 
-```text
-place_source_ref google_places
-→ Google Place ID
-→ Google Places Reviews
-→ hidden_gems.review
-```
+### 27.1. Flujo global hasta dashboard v2
 
-El resultado fue una base local suficiente para ejecutar un prototipo real de Hidden Gems sobre Sevilla.
-
-### 26.2. Resultado operativo de recolección local
-
-La recolección ampliada dejó una base aproximada de trabajo de:
-
-```text
-Google Places locales: 800+
-Google Places reviews: 4.000+
-```
-
-Estos datos no se obtuvieron mediante scraping, sino mediante la integración controlada de Places API New, manteniendo:
-
-```text
-source_run
-raw_asset
-staging
-importación canónica
-checks de batch
-trazabilidad de reviews
-```
-
-### 26.3. Relación con el pipeline IA Sevilla
-
-Una vez cargadas las reviews locales, el flujo continuó fuera de esta vertical, en la capa IA:
-
-```text
-Google Places Reviews Sevilla
-→ export_reviews_for_ai.py
-→ notebooks 12–17
-→ detección de platos
-→ normalización de platos
-→ sentimiento por mención
-→ señales place + dish
-→ ranking sevilla_pilot
-→ load_sevilla_ai_pilot_outputs.py
-→ check_sevilla_ai_pilot_loaded.py
-→ query_sevilla_hidden_gems_demo.py
-```
-
-Por tanto, Google Places no ejecuta IA directamente, pero sí proporciona el dato operativo real que permite aplicar la IA sobre Sevilla.
-
-### 26.4. Resultado del piloto IA derivado
-
-El piloto IA Sevilla generado a partir de las reviews locales produjo:
-
-```text
-dish = 190
-dish_alias = 243
-dish_mention = 2.979
-dish_mention_sentiment = 2.979
-dish_place_signal = 2.212
-hidden_gem_candidate = 256
-hidden_gem_selected = 150
-```
-
-La carga final quedó validada con:
-
-```text
-ready_for_sevilla_pilot_queries = true
-errors = []
-warnings = []
-```
-
-### 26.5. Alcance del ranking generado
-
-El ranking generado se marca como piloto:
-
-```text
-artifact_ranking_scope = sevilla_pilot
-db_ranking_scope = other
-is_production_ready = false
-```
-
-Esto significa que el ranking ya es consultable y demostrable, pero todavía no se declara como ranking productivo definitivo.
-
-La razón de usar `db_ranking_scope = other` es una restricción actual del DDL de `hidden_gem_candidate`, que no contempla todavía el valor literal `sevilla_pilot`. El alcance real del artefacto se conserva dentro de `ranking_config_json`.
-
-### 26.6. Nueva interpretación del flujo futuro descrito anteriormente
-
-Las secciones anteriores de este documento indicaban como siguiente paso:
+La relación final entre Google Places y la fase IA v2 queda así:
 
 ```text
 Google Places Text Search
+→ place / place_source_ref / geografía
 → Google Places Reviews
-→ export_reviews_for_ai.py
-→ detección de platos
-→ señales
-→ ranking por barrio
+→ review
+→ Hybrid + NER candidates v2
+→ Normalization reranker v1
+→ ABSA sentiment v1
+→ place-dish signals v2
+→ hidden gems ranking v2
+→ comparación v1 vs v2
+→ dashboard Sevilla IA v2
 ```
 
-Ese flujo ya se ha realizado en modo **piloto Sevilla**.
+Por tanto, Google Places funciona como la fuente operativa local que sostiene todo el flujo final de Sevilla.
 
-La evolución pendiente ya no es “probar si el flujo es posible”, sino avanzar hacia:
+### 27.2. Resultados finales relacionados
+
+El ranking Sevilla IA v2, derivado de la cadena construida sobre reviews locales, produjo:
 
 ```text
-1. consolidar scripts demo finales;
-2. crear dashboard piloto;
-3. revisar falsos positivos y calidad del ranking;
-4. ajustar DDL si se quiere admitir ranking_scope = sevilla_pilot;
-5. mejorar reglas/modelos IA si el análisis del dashboard lo justifica;
-6. preparar una futura versión productiva con validación más estricta.
+total_candidates_scored_v2 = 2.335
+selected_candidates_v2 = 268
+selected_places_v2 = 198
+selected_dishes_v2 = 40
+selected_neighborhoods_v2 = 67
+selected_districts_v2 = 11
 ```
 
-### 26.7. Estado actualizado de la vertical
-
-Además del estado funcional ya descrito, actualmente puede añadirse:
+La comparación con el ranking v1 confirmó:
 
 ```text
-[OK] Google Places usado como fuente operativa principal del piloto Sevilla
-[OK] Recolección ampliada de locales reales de Sevilla
-[OK] Base local enriquecida con reviews mediante Google Places Reviews
-[OK] Reviews exportadas para IA
-[OK] Ranking sevilla_pilot generado a partir de datos locales
-[OK] Resultados cargados en PostgreSQL
-[OK] Check final ready_for_sevilla_pilot_queries = true
-[OK] Query demo sobre resultados Sevilla funcionando
+v1_selected_unique = 150
+v2_selected_unique = 268
+matched_candidates = 119
+v1_coverage_in_v2 = 0.793333
+selected_places_delta_v2_minus_v1 = +76
+selected_neighborhoods_delta_v2_minus_v1 = +12
 ```
 
-La vertical queda, por tanto, en un estado más avanzado: no solo está lista para alimentar IA, sino que ya lo ha hecho en un piloto local trazable.
+Estos resultados muestran que Google Places fue la fuente local principal para pasar de un piloto inicial a un ranking experimental más rico y explotable.
+
+### 27.3. Estado final de la vertical
+
+Para la entrega académica, Google Places queda en este estado:
+
+```text
+[OK] Text Search operativo
+[OK] Locales reales de Sevilla integrados
+[OK] Google Place ID conservado en place_source_ref
+[OK] Base preparada para Place Details Reviews
+[OK] Uso real en piloto Sevilla v1
+[OK] Uso indirecto en Sevilla IA v2
+[OK] Resultados explotados en dashboard final
+```
+
+### 27.4. Límites mantenidos
+
+Aunque la fase v2 ya está cerrada, se mantienen los límites de diseño:
+
+- no scraping;
+- no ejecución masiva sin control de coste;
+- no `FieldMask: *`;
+- no confundir Google Places con el ranking IA;
+- no marcar resultados como producción sin validación humana;
+- mantener `is_production_ready = false` en rankings experimentales.
+
+La siguiente evolución, fuera de la entrega académica, sería mejorar cobertura, automatización, descarga controlada de modelos y validación humana del top ranking.
 

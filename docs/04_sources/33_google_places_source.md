@@ -462,3 +462,107 @@ Google Places ya no es solo una fuente preparada para alimentar IA futura.
 Actualmente ha alimentado un piloto IA real sobre Sevilla, con datos operativos de Google Reviews, ranking `sevilla_pilot`, carga en PostgreSQL, checks correctos y demo de consulta.
 
 La fuente queda como eje operativo principal para seguir evolucionando Hidden Gems hacia dashboard, API y una futura versión de ranking validada para producción.
+
+
+---
+
+## 21. Actualización: Google Places como base de Sevilla IA v2
+
+Tras el piloto `sevilla_pilot`, Google Places Reviews ha pasado a ser también la base de la fase **Sevilla IA v2**.
+
+La diferencia entre la fase piloto y la fase v2 es que en v2 ya no se usa solo una cadena híbrida/reglas, sino modelos entrenados y aplicados localmente:
+
+```text
+Google Places Reviews Sevilla
+→ Hybrid + NER v2
+→ normalización con reranker BETO
+→ sentimiento por mención ABSA BETO
+→ señales place-dish v2
+→ ranking Hidden Gems Sevilla v2
+→ dashboard_v2
+```
+
+Resultados finales relacionados con Google Places Reviews y Sevilla IA v2:
+
+| Métrica | Valor |
+|---|---:|
+| Candidatos puntuados v2 | 2.335 |
+| Candidatos seleccionados v2 | 268 |
+| Locales seleccionados v2 | 198 |
+| Platos seleccionados v2 | 40 |
+| Barrios seleccionados v2 | 67 |
+| Distritos seleccionados v2 | 11 |
+| Menciones seleccionadas v2 | 651 |
+| Reviews seleccionadas v2 | 627 |
+
+El ranking v2 sigue estando marcado como no producción:
+
+```text
+is_production_ready = false
+```
+
+pero ya es el resultado principal para la entrega académica y se explota mediante el dashboard Sevilla IA v2.
+
+---
+
+## 22. Artefactos derivados actuales
+
+A partir de Google Places Reviews se han generado, entre otros, los siguientes artefactos relevantes:
+
+```text
+data/artifacts/ai/sevilla/model_inference/hybrid_ner_v2/
+data/artifacts/ai/sevilla/model_inference/normalization_reranker_v1/
+data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/
+data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/
+data/artifacts/ai/sevilla/model_inference/ranking_v2/
+data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison/
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Estos artefactos no son fuente primaria, sino resultados derivados. Aun así, son esenciales para la explotación del valor obtenido a partir de Google Places Reviews.
+
+---
+
+## 23. Limitaciones actualizadas
+
+Las limitaciones de Google Places se mantienen:
+
+- coste y cuotas;
+- dependencia de API externa;
+- número limitado de reviews recuperables;
+- sesgo positivo frecuente en reseñas;
+- textos breves o poco descriptivos;
+- necesidad de controlar FieldMask y batches.
+
+La diferencia es que la fase v2 mitiga parcialmente algunas limitaciones analíticas mediante modelos específicos:
+
+- NER para detectar menciones de platos;
+- reranker para normalizar menciones a catálogo;
+- ABSA para estimar sentimiento por plato, no solo por reseña completa;
+- evidence tier y quality tier para evitar sobreafirmar señales débiles.
+
+---
+
+## 24. Estado final actualizado de Google Places
+
+Estado actual para la entrega:
+
+```text
+[OK] API key configurada localmente
+[OK] source_system activado
+[OK] Text Search operativo
+[OK] raw trazable
+[OK] staging y deduplicación
+[OK] importación canónica
+[OK] batch por barrios/distritos
+[OK] Place Details Reviews operativo
+[OK] reviews importadas en review
+[OK] export reviews para IA
+[OK] piloto IA Sevilla v1 generado
+[OK] ranking Sevilla IA v2 generado
+[OK] comparación v1 vs v2 generada
+[OK] dashboard_v2 exportado
+[OK] dashboard Streamlit Sevilla IA v2 funcional
+```
+
+Google Places queda como la fuente operativa principal de la entrega académica.

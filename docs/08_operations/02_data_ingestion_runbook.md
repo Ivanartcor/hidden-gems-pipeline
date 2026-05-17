@@ -1,5 +1,8 @@
 # 02. Data Ingestion Runbook
 
+
+
+
 ## 1. Propósito
 
 Este runbook describe cómo ejecutar las verticales de adquisición e importación de datos de **Hidden Gems Pipeline**.
@@ -740,3 +743,32 @@ El siguiente runbook operativo recomendado es:
 ```
 
 porque Google Places y Google Places Reviews son las fuentes más sensibles por coste, cuotas y dependencia externa.
+
+---
+
+## 16. Actualización final: handoff desde ingesta hacia Sevilla IA v2
+
+La ingesta de fuentes queda cerrada para la entrega académica con una base suficiente de geografía, locales, reviews y corpus de apoyo. La fase Sevilla IA v2 **no añade una nueva fuente**, sino que explota las reviews reales ya obtenidas desde Google Places Reviews y los artefactos generados durante el proyecto.
+
+Handoff final:
+
+```text
+Google Places Reviews importadas
+→ export/datasets IA Sevilla
+→ entrenamiento en Kaggle
+→ modelos locales en models/
+→ inferencia local
+→ ranking v2
+→ dashboard_v2
+```
+
+Para la entrega final no es necesario repetir ingestas si ya existen los artefactos finales. Solo tendría sentido repetirlas si se quiere ampliar cobertura, refrescar reviews o generar una futura versión v3.
+
+El dashboard final no consume raw/staging directamente:
+
+```text
+ingesta validada
+→ artefactos IA/ranking/export limpios
+→ data/artifacts/ai/sevilla/dashboard_v2/
+→ dashboard/streamlit_sevilla_v2_app.py
+```

@@ -1,5 +1,6 @@
 # 02. Problema y objetivos
 
+
 ## 1. Problema que aborda el proyecto
 
 La información gastronómica disponible en plataformas digitales suele estar dispersa, heterogénea y orientada principalmente al consumo inmediato, no al análisis estructurado.
@@ -28,9 +29,10 @@ fuentes externas
 barrio / distrito
 calidad del dato
 ranking explicable
+dashboard de consulta
 ```
 
-Por tanto, el problema principal no es la ausencia de datos, sino la falta de un sistema que los **adquiera, unifique, limpie, estructure, trace y prepare de manera consistente** para análisis gastronómico avanzado.
+Por tanto, el problema principal no es la ausencia de datos, sino la falta de un sistema que los **adquiera, unifique, limpie, estructure, trace, procese con IA y prepare de manera consistente** para análisis gastronómico avanzado.
 
 ---
 
@@ -48,7 +50,8 @@ Esa necesidad técnica se concreta en varios puntos:
 - preparar corpus textuales para NLP;
 - integrar resultados IA sin crear entidades huérfanas;
 - validar que menciones, sentimientos, señales y rankings se conectan con `place`, `review` y `dish`;
-- diferenciar prototipos IA, pilotos locales y resultados productivos finales.
+- diferenciar prototipos IA, pilotos locales, rankings experimentales y resultados productivos finales;
+- proporcionar una forma visual y entendible de explorar los resultados.
 
 Este proyecto nace precisamente para cubrir esa necesidad fundacional.
 
@@ -56,7 +59,7 @@ Este proyecto nace precisamente para cubrir esa necesidad fundacional.
 
 ## 3. Objetivo general
 
-Desarrollar un **pipeline inteligente de adquisición, procesamiento e integración de datos gastronómicos**, integrado en el ecosistema de Hidden Gems, capaz de obtener información desde múltiples fuentes, almacenarla de forma trazable, validarla, estructurarla, enriquecerla geográficamente y prepararla para explotación analítica e IA aplicada.
+Desarrollar un **pipeline inteligente de adquisición, procesamiento, integración IA y explotación analítica de datos gastronómicos**, integrado en el ecosistema de Hidden Gems, capaz de obtener información desde múltiples fuentes, almacenarla de forma trazable, validarla, estructurarla, enriquecerla geográficamente y prepararla para análisis avanzado, ranking y visualización.
 
 El objetivo no es solo almacenar locales o reseñas, sino construir una base capaz de soportar el ciclo completo:
 
@@ -67,11 +70,13 @@ fuente externa
 → review operativa
 → corpus textual
 → detección de platos
+→ normalización/entity linking
 → sentimiento por mención
 → señales agregadas
 → ranking Hidden Gems
-→ consulta demo
-→ futuro dashboard/API
+→ comparación de versiones
+→ consulta demo / dashboard
+→ futura API o producto
 ```
 
 ---
@@ -104,7 +109,7 @@ Vincular los locales a unidades territoriales oficiales, permitiendo que el aná
 
 ### 4.7. Desarrollar una capa IA de extracción y scoring
 
-Crear una primera versión de la lógica IA para:
+Crear una lógica IA para:
 
 - detectar menciones de platos;
 - normalizar nombres de platos;
@@ -121,11 +126,27 @@ Persistir los resultados derivados de IA en tablas específicas, con versionado,
 
 Aplicar la cadena IA sobre reviews reales de Google Places en Sevilla, generando un ranking piloto local con cobertura por barrios y distritos.
 
-### 4.10. Facilitar la explotación analítica futura
+### 4.10. Mejorar el flujo IA con modelos entrenados
 
-Construir una base que permita avanzar hacia ranking por barrio, API, dashboard, análisis BI o productos de consulta sin rediseñar el núcleo del sistema.
+Entrenar y aplicar modelos específicos para mejorar la cadena local de Sevilla:
 
-### 4.11. Documentar el sistema de forma profesional
+- **Modelo 1: Dish NER**, para detectar menciones de platos;
+- **Modelo 3: Normalización / entity linking**, mediante reranker cross-encoder;
+- **Modelo 2: Mention Sentiment / ABSA**, para clasificar sentimiento hacia el plato concreto.
+
+### 4.11. Construir una capa de señales y ranking v2
+
+Agrupar las predicciones por `place_id + dish_id`, calcular señales agregadas y construir un ranking Hidden Gems Sevilla v2 que mejore el piloto anterior.
+
+### 4.12. Comparar ranking v1 vs ranking v2
+
+Evaluar si la nueva cadena IA conserva candidatos útiles del ranking piloto y amplía la cobertura de locales, platos y barrios.
+
+### 4.13. Facilitar la explotación analítica
+
+Construir una base que permita consultar resultados mediante scripts, vistas SQL, exports de dashboard y dashboards Streamlit.
+
+### 4.14. Documentar el sistema de forma profesional
 
 Generar documentación clara y estructurada para que el proyecto sea entendible, reproducible y mantenible.
 
@@ -142,8 +163,9 @@ Permite:
 - apoyar el desarrollo de verticales de adquisición independientes;
 - dar coherencia al modelo de datos desde el inicio;
 - conectar datos geográficos, reseñas y señales IA;
-- diferenciar claramente corpus experimental, dato operativo, piloto local y ranking productivo;
-- sentar la base para decisiones futuras de calidad, normalización, IA, dashboard y análisis.
+- diferenciar claramente corpus experimental, dato operativo, piloto local, ranking experimental y ranking productivo;
+- demostrar valor mediante dashboards;
+- sentar la base para decisiones futuras de calidad, normalización, IA, API y producto.
 
 En este sentido, el proyecto no solo persigue “tener una base de datos”, sino construir una **columna vertebral técnica** sobre la que Hidden Gems pueda crecer sin perder consistencia.
 
@@ -151,7 +173,7 @@ En este sentido, el proyecto no solo persigue “tener una base de datos”, sin
 
 ## 6. Criterio de éxito de esta fase
 
-Se considerará que esta fase cumple sus objetivos si el proyecto logra:
+Se considera que esta fase cumple sus objetivos si el proyecto logra:
 
 - definir y documentar correctamente su arquitectura de adquisición;
 - disponer de una base de datos coherente con el modelo diseñado;
@@ -164,7 +186,12 @@ Se considerará que esta fase cumple sus objetivos si el proyecto logra:
 - integrar los resultados IA en PostgreSQL sin huérfanos;
 - disponer de vistas y consultas para explotar los resultados;
 - generar un ranking piloto `sevilla_pilot` consultable;
-- dejar resuelto el marco estructural necesario para dashboard, API y mejora IA futura.
+- entrenar modelos específicos para mejorar la fase local;
+- generar ranking Hidden Gems Sevilla IA v2;
+- comparar v1 y v2;
+- exportar datos para dashboard;
+- disponer de dashboards funcionales;
+- dejar documentada la fase final de entrega.
 
 El éxito, por tanto, no se mide por tener ya el producto final completo, sino por haber construido correctamente la **infraestructura de datos e IA que lo hace viable**.
 
@@ -172,20 +199,68 @@ El éxito, por tanto, no se mide por tener ya el producto final completo, sino p
 
 ## 7. Estado de cumplimiento
 
-A día de esta versión, el proyecto ya ha cumplido una parte importante de esos objetivos:
+A día de esta versión, el proyecto cumple los objetivos principales planteados para la entrega académica.
 
 ```text
-Sevilla Geo                         ✅ implementado
-OSM / Overpass                      ✅ implementado
-Google Places Text Search           ✅ implementado
-Google Places Reviews               ✅ implementado
-Yelp Open Dataset                   ✅ implementado como corpus/prototipo
-Módulo IA Yelp                      ✅ implementado e integrado
-Piloto IA Sevilla                   ✅ implementado, cargado y validado
-Vistas SQL IA                       ✅ disponibles
-Scripts demo de consulta            ✅ disponibles
-Dashboard                          ⏳ siguiente fase
-Mejora IA con modelos españoles     ⏳ fase posterior
+Sevilla Geo                              ✅ implementado
+OSM / Overpass                           ✅ implementado
+Google Places Text Search                ✅ implementado
+Google Places Reviews                    ✅ implementado
+Yelp Open Dataset                        ✅ implementado como corpus/prototipo
+Módulo IA Yelp                           ✅ implementado e integrado
+Piloto IA Sevilla v1                     ✅ implementado, cargado y validado
+Vistas SQL IA                            ✅ disponibles
+Scripts demo de consulta                 ✅ disponibles
+Dashboard Sevilla v1                     ✅ implementado
+Dashboard Yelp                           ✅ implementado
+NER de platos para Sevilla IA v2          ✅ entrenado y aplicado
+Normalización/entity linking v2           ✅ entrenado y aplicado
+ABSA sentiment por mención v2             ✅ entrenado y aplicado
+Señales place-dish v2                    ✅ generadas
+Ranking Hidden Gems Sevilla v2           ✅ generado
+Comparación ranking v1 vs v2             ✅ generada
+Export dashboard v2                      ✅ generado
+Dashboard Sevilla IA v2                  ✅ implementado
+Documentación Sevilla IA v2              ✅ completada
+Entrega académica                        ✅ cerrada
 ```
 
-El objetivo inmediato pasa a ser consolidar la explotación del piloto mediante scripts demo finales, dashboard y revisión de calidad con uso real.
+Resultados principales del ranking Sevilla IA v2:
+
+```text
+total_candidates_scored_v2: 2.335
+selected_candidates_v2: 268
+selected_places_v2: 198
+selected_dishes_v2: 40
+selected_neighborhoods_v2: 67
+selected_districts_v2: 11
+```
+
+Resultados de comparación v1/v2:
+
+```text
+v1_selected_unique: 150
+v2_selected_unique: 268
+matched_candidates: 119
+v1_coverage_in_v2: 0.793333
+selected_places_delta_v2_minus_v1: +76
+selected_neighborhoods_delta_v2_minus_v1: +12
+```
+
+---
+
+## 8. Objetivo cerrado de entrega
+
+El objetivo inmediato ya no es demostrar que el sistema puede funcionar, sino dejar el repositorio preparado como entrega final del Proyecto Integrado.
+
+La entrega queda definida como:
+
+```text
+pipeline de datos + integración IA + ranking + dashboard + documentación
+```
+
+No se entrega una aplicación final de consumo masivo, sino un **MVP técnico avanzado** que demuestra el ciclo completo desde fuentes de datos hasta visualización analítica.
+
+
+
+Realizado por Iván Arteaga Cordero

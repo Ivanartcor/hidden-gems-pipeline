@@ -1,5 +1,7 @@
 # 05. Checks and Validation Runbook
 
+
+
 ## 1. Propósito
 
 Este documento centraliza los checks de Hidden Gems y explica cuándo ejecutar cada uno.
@@ -816,3 +818,112 @@ Si no hay check correcto, la fase no está cerrada.
 ```
 
 Todo avance hacia dashboard, API o modelos más avanzados debe apoyarse en estos reports de validación.
+
+---
+
+## 17. Checks y validaciones de Sevilla IA v2
+
+La fase Sevilla IA v2 se valida principalmente mediante summaries de artefactos, no mediante una carga nueva completa en PostgreSQL.
+
+### 17.1. Validación de `hybrid_ner_v2`
+
+```text
+hybrid_mentions > 0
+ner_mentions > 0
+matches > 0
+candidate_rows_final > 0
+JSONL serializable sin errores
+sin duplicados críticos por review_id + mention_norm
+```
+
+### 17.2. Validación de normalización reranker
+
+```text
+input_rows = normalized_rows
+linked + linked_needs_review + low_confidence + no_candidate = input_rows
+ready_for_sentiment > 0
+```
+
+### 17.3. Validación de ABSA
+
+```text
+predicted_rows > 0
+sentiment_label ∈ {negative, neutral, positive}
+confidence entre 0 y 1
+ready_for_downstream_sentiment > 0
+sin NaN/Infinity en JSONL
+```
+
+### 17.4. Validación de ranking v2
+
+Revisar:
+
+```text
+data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_ranking_v2_summary.json
+```
+
+Checks esperados:
+
+```text
+has_ranking = true
+has_selected_candidates = true
+selected_hidden_gem_candidates = 268
+score_in_0_100 = true
+selected_have_place = true
+selected_have_dish = true
+selected_have_neighborhood = true
+selected_have_district = true
+selected_ranks_are_unique = true
+all_selected_are_not_production_ready = true
+```
+
+### 17.5. Validación de comparación v1/v2
+
+Revisar:
+
+```text
+data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison/sevilla_ranking_v1_vs_v2_summary.json
+```
+
+Checks esperados:
+
+```text
+v1_selected_unique = 150
+v2_selected_unique = 268
+matched_candidates = 119
+v1_coverage_in_v2 ≈ 0.793333
+checks principales = true
+```
+
+### 17.6. Validación de dashboard_v2
+
+Revisar:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/dashboard_export_summary.json
+```
+
+Checks esperados:
+
+```text
+has_ranking = true
+has_selected_candidates = true
+expected_selected_matches = true
+score_in_0_100 = true
+selected_have_place = true
+selected_have_dish = true
+selected_have_neighborhood = true
+selected_have_district = true
+comparison_loaded = true
+all_selected_are_not_production_ready = true
+```
+
+Regla final:
+
+```text
+ranking_v2_summary OK
+comparison_summary OK
+dashboard_export_summary OK
+streamlit_sevilla_v2_app.py ejecuta sin error
+README y docs actualizados
+```

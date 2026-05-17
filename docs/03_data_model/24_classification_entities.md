@@ -1,6 +1,3 @@
-# docs/03_data_model/24_classification_entities.md
-
-````md
 # 24. Catálogo de entidades: clasificación
 
 ## 1. Introducción
@@ -389,6 +386,38 @@ Las decisiones principales son:
 
 ---
 
+## 8. Estado actual y relación con IA v2
+
+La clasificación interna de locales sigue siendo una capa de soporte del modelo canónico. En la fase Sevilla IA v2, la clasificación no actúa como variable principal de ranking, pero sí cumple funciones importantes:
+
+- filtrar fuentes hacia el dominio gastronómico;
+- diferenciar locales de comida, cafeterías, bares, restaurantes u otros POIs;
+- apoyar la selección de negocios desde OSM, Google Places y Yelp;
+- facilitar filtros futuros en dashboard o API;
+- reducir ruido en ingestas y corpus.
+
+La fase IA v2 se centra en `place + dish`, no en `place + category`. Sin embargo, la taxonomía de categorías sigue siendo necesaria para garantizar que los candidatos proceden del dominio gastronómico y para permitir análisis posteriores por tipo de local.
+
+Relación conceptual:
+
+```text
+category / place_category
+→ delimita locales gastronómicos
+→ review
+→ dish_mention
+→ dish_place_signal
+→ hidden_gem_candidate
+```
+
+En una futura fase de producto, `category` podrá usarse para explicar o filtrar resultados como:
+
+- bares con mejores tapas;
+- cafeterías con mejores churros;
+- restaurantes con platos específicos;
+- locales de comida rápida que destacan por un plato concreto.
+
+---
+
 ## 8. Conclusión
 
 El bloque de clasificación permite unificar la forma en la que Hidden Gems entiende los tipos de locales.
@@ -396,11 +425,3 @@ El bloque de clasificación permite unificar la forma en la que Hidden Gems enti
 Gracias a la separación entre `category` y `place_category`, el sistema puede integrar categorías procedentes de distintas fuentes sin perder control semántico ni trazabilidad.
 
 Esta estructura será especialmente importante cuando se incorporen nuevas fuentes y cuando se avance hacia fases de normalización y análisis gastronómico más específicas.
-
-````
-
----
-
-# docs/03_data_model/25_governance_traceability_entities.md
-
-

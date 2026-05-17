@@ -1,5 +1,8 @@
 # 08. Flujo Git y preparación de entregas
 
+
+
+
 ## 1. Objetivo del documento
 
 Este documento define el flujo recomendado para versionar, revisar y entregar cambios del proyecto **Hidden Gems**.
@@ -540,3 +543,67 @@ Antes de cada push: revisar que el repo sigue limpio.
 ```
 
 Con este flujo, Hidden Gems puede crecer como proyecto técnico serio sin mezclar código, documentación, datos pesados y credenciales.
+
+---
+
+## 25. Actualización final: entrega académica cerrada
+
+El proyecto integrado se considera cerrado académicamente con la fase:
+
+```text
+Sevilla IA v2 + dashboard final + documentación completa
+```
+
+Estado conceptual:
+
+```text
+Estado académico: cerrado para entrega.
+Estado técnico: MVP avanzado / prototipo analítico funcional.
+Estado producción: no producción, pendiente de validación humana y despliegue.
+```
+
+Commits recomendados:
+
+```powershell
+git add README.md docs/
+git commit -m "docs: finalize documentation for Sevilla AI v2 delivery"
+```
+
+```powershell
+git add scripts/ dashboard/ requirements.txt .gitignore
+git commit -m "feat: add Sevilla AI v2 ranking export and dashboard"
+```
+
+Checklist final antes de push:
+
+```text
+[ ] README enlaza a docs/13_sevilla_ai_v2/.
+[ ] docs/01_context a docs/08_operations están actualizados.
+[ ] docs/13_sevilla_ai_v2 está completa.
+[ ] dashboard/streamlit_sevilla_v2_app.py existe.
+[ ] scripts/export_sevilla_dashboard_data_v2.py existe.
+[ ] requirements.txt incluye dependencias dashboard/modelos.
+[ ] .gitignore excluye models/, raw, staging, external y artifacts pesados.
+[ ] No aparece .env.
+[ ] No aparecen modelos entrenados.
+[ ] No aparecen CSV/JSONL pesados.
+[ ] El dashboard v2 se ha probado localmente.
+```
+
+No subir:
+
+```text
+models/
+data/artifacts/ai/sevilla/dashboard_v2/mention_examples.csv
+data/artifacts/ai/sevilla/model_inference/**/*.jsonl
+data/artifacts/ai/sevilla/model_inference/**/*.csv
+data/raw/
+data/staging/
+.env
+```
+
+Frase de cierre del repositorio:
+
+```text
+Hidden Gems queda cerrado como Proyecto Integrado con un pipeline completo de datos + IA + ranking + dashboard, manteniendo el ranking final como experimental y no productivo.
+```

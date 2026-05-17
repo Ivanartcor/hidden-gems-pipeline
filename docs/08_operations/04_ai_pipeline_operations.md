@@ -1,5 +1,8 @@
 # 04. AI Pipeline Operations
 
+
+
+
 ## 1. Propósito
 
 Este documento describe cómo operar la parte IA de Hidden Gems desde el punto de vista práctico.
@@ -660,4 +663,189 @@ Una ejecución IA se considera cerrada cuando:
 [ ] La demo de consulta devuelve resultados.
 [ ] Los artifacts pesados no se suben a Git.
 [ ] La documentación se actualiza si cambia el flujo.
+```
+
+---
+
+## 16. Operación Sevilla IA v2
+
+La fase Sevilla IA v2 es posterior al piloto `sevilla_pilot` v1 y representa la versión final entregable del proyecto integrado.
+
+Modelos incorporados:
+
+```text
+Modelo 1: NER de platos
+Modelo 3: normalización/entity linking con reranker
+Modelo 2: sentimiento por mención / ABSA
+```
+
+Flujo operativo completo:
+
+```text
+reviews/candidatos Sevilla
+→ NER v1.2
+→ limpieza salida NER
+→ Hybrid + NER candidates v2
+→ normalización con reranker
+→ ABSA por mención
+→ señales place-dish v2
+→ ranking Hidden Gems v2
+→ comparación v1 vs v2
+→ export dashboard_v2
+→ dashboard Streamlit Sevilla IA v2
+```
+
+### 16.1. Modelos locales esperados
+
+```text
+models/sevilla_dish_ner_beto_v1_2/
+models/sevilla_dish_normalization_reranker_beto_v1/
+models/sevilla_mention_sentiment_absa_beto_v1/
+```
+
+### 16.2. Construcción Hybrid + NER candidates v2
+
+```powershell
+python -m scripts.build_sevilla_hybrid_ner_mention_candidates_v2 `
+  --ner-path data/artifacts/ai/sevilla/model_inference/ner_v1_2_cleaned/sevilla_dish_mentions_ner_model_v1_2.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/hybrid_ner_v2 `
+  --strict
+```
+
+Resultados de referencia:
+
+```text
+hybrid_mentions = 2.979
+ner_mentions = 2.964
+matches = 2.735
+candidate_rows_final = 2.965
+```
+
+### 16.3. Normalización con reranker
+
+```powershell
+python -m scripts.run_sevilla_dish_normalization_reranker_v1 `
+  --input-path data/artifacts/ai/sevilla/model_inference/hybrid_ner_v2/sevilla_dish_mentions_hybrid_ner_candidates_v2.jsonl `
+  --model-dir models/sevilla_dish_normalization_reranker_beto_v1 `
+  --output-dir data/artifacts/ai/sevilla/model_inference/normalization_reranker_v1 `
+  --strict
+```
+
+Resultados de referencia:
+
+```text
+input_rows = 2.965
+linked = 2.586
+linked_needs_review = 294
+low_confidence = 58
+no_candidate = 27
+ready_for_sentiment = 2.880
+```
+
+### 16.4. ABSA por mención
+
+Salida esperada:
+
+```text
+data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/sevilla_dish_mentions_with_absa_sentiment_v1.jsonl
+```
+
+Resultados de referencia:
+
+```text
+predicted_rows = 2.880
+ready_for_downstream_sentiment = 2.561
+positive = 2.388
+negative = 343
+neutral = 149
+```
+
+Métricas de entrenamiento:
+
+```text
+accuracy = 0.9472
+macro_f1 = 0.9353
+negative_f1 = 0.9259
+neutral_f1 = 0.9158
+positive_f1 = 0.9643
+```
+
+### 16.5. Ranking v2
+
+```powershell
+python -m scripts.build_sevilla_hidden_gems_ranking_v2 `
+  --input-path data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/sevilla_place_dish_signals_v2.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/ranking_v2 `
+  --strict
+```
+
+Resultados de referencia:
+
+```text
+input_signals = 2.335
+selected_hidden_gem_candidates = 268
+selected_places = 198
+selected_dishes = 40
+selected_neighborhoods = 67
+selected_districts = 11
+production_ready_count = 0
+```
+
+### 16.6. Comparación v1 vs v2
+
+```powershell
+python -m scripts.compare_sevilla_ranking_v1_vs_v2 `
+  --v1-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --v2-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_selected_v2.jsonl `
+  --output-dir data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison `
+  --strict
+```
+
+Resultados de referencia:
+
+```text
+v1_selected_unique = 150
+v2_selected_unique = 268
+matched_candidates = 119
+v1_only_candidates = 31
+v2_only_candidates = 149
+v1_coverage_in_v2 = 0.793333
+jaccard_overlap = 0.397993
+```
+
+### 16.7. Export dashboard v2
+
+```powershell
+python -m scripts.export_sevilla_dashboard_data_v2 `
+  --ranking-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_ranking_v2.jsonl `
+  --selected-path data/artifacts/ai/sevilla/model_inference/ranking_v2/sevilla_hidden_gems_selected_v2.jsonl `
+  --signals-path data/artifacts/ai/sevilla/model_inference/place_dish_signals_v2/sevilla_place_dish_signals_v2.jsonl `
+  --mentions-path data/artifacts/ai/sevilla/model_inference/sentiment_absa_v1/sevilla_dish_mentions_with_absa_sentiment_v1.jsonl `
+  --comparison-dir data/artifacts/ai/sevilla/model_inference/ranking_v2_comparison `
+  --coordinates-path data/artifacts/ai/sevilla/dashboard/candidates_detail.csv `
+  --output-dir data/artifacts/ai/sevilla/dashboard_v2 `
+  --expected-selected 268 `
+  --include-mentions `
+  --examples-per-candidate 5 `
+  --include-full-review-text `
+  --strict
+```
+
+### 16.8. Dashboard final
+
+```powershell
+streamlit run dashboard/streamlit_sevilla_v2_app.py
+```
+
+Cierre operativo:
+
+```text
+[OK] hybrid_ner_v2 generado
+[OK] normalization_reranker_v1 generado
+[OK] sentiment_absa_v1 generado
+[OK] place_dish_signals_v2 generado
+[OK] ranking_v2 generado
+[OK] ranking_v2_comparison generado
+[OK] dashboard_v2 exportado
+[OK] dashboard Sevilla IA v2 funcionando
 ```

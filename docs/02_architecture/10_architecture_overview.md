@@ -2,27 +2,20 @@
 
 ## 1. Finalidad de la arquitectura
 
-La arquitectura de **Hidden Gems** está diseñada para soportar un procesamiento de datos gastronómicos **modular, reproducible, trazable, extensible y preparado para inteligencia artificial**.
+La arquitectura de **Hidden Gems Pipeline** está diseñada para soportar un procesamiento de datos gastronómicos **modular, reproducible, trazable, extensible y preparado para inteligencia artificial aplicada**.
 
-Su función no es solo descargar información desde varias fuentes, sino transformarla progresivamente hasta convertirla en una base canónica y una capa derivada de señales inteligentes capaz de alimentar análisis, ranking, consulta técnica y futuras funcionalidades de producto.
+Su función no es solo descargar información desde varias fuentes, sino transformar progresivamente datos heterogéneos hasta convertirlos en:
 
-Desde el principio se buscó una arquitectura que permitiera trabajar con datos heterogéneos sin perder control del flujo ni trazabilidad sobre lo que ocurre en cada ejecución. Por eso el sistema se apoya en:
+- una base canónica de locales, fuentes, reseñas, geografía y categorías;
+- una capa derivada de IA capaz de detectar platos, normalizarlos, estimar sentimiento por mención y generar señales local-plato;
+- rankings explicables de candidatos Hidden Gems;
+- exports y dashboards para explotación analítica.
 
-- capas de datos bien diferenciadas;
-- un modelo relacional orientado a dominio;
-- trazabilidad de fuentes, ejecuciones y artefactos;
-- separación entre datos operativos y datos derivados;
-- módulos independientes para adquisición, normalización, geografía, calidad, IA y consulta;
-- notebooks para prototipado IA;
-- scripts de carga, validación y demo para estabilizar resultados en PostgreSQL.
-
-El resultado actual no es una colección de scripts sueltos, sino una arquitectura de datos completa sobre la que puede evolucionar el proyecto Hidden Gems.
+El proyecto ha evolucionado desde una arquitectura de adquisición hacia una plataforma completa de datos + IA + ranking + dashboard, manteniendo siempre la separación entre dato fuente, dato canónico, dato derivado y artefactos de explotación.
 
 ---
 
 ## 2. Principios de diseño
-
-La arquitectura del proyecto se apoya en varios principios clave.
 
 ### 2.1. Trazabilidad primero
 
@@ -33,27 +26,30 @@ Cada ejecución del pipeline debe poder reconstruirse. Para ello se registran:
 - el asset raw generado (`raw_asset`);
 - las incidencias detectadas (`validation_issue`);
 - las ejecuciones de IA (`ai_pipeline_run`);
-- las versiones de modelos, reglas o métodos IA (`ai_model_version`).
+- las versiones de modelos, reglas o métodos IA (`ai_model_version`);
+- los artefactos derivados de ranking, comparación y dashboard.
 
-La trazabilidad ya no se limita a la ingesta. También alcanza a la capa derivada de IA y a los rankings generados.
+La trazabilidad ya no se limita a la ingesta. También alcanza a la capa IA, a los modelos entrenados, a los rankings generados y a los exports de dashboard.
 
 ---
 
 ### 2.2. Separación por capas
 
-No se mezclan descarga, transformación, consolidación, análisis IA y ranking en una sola fase.
+No se mezclan descarga, transformación, consolidación, análisis IA, ranking y explotación en una sola fase.
 
-Cada capa tiene una responsabilidad concreta:
+El sistema trabaja con capas diferenciadas:
 
 ```text
 raw
 → staging
 → reference
 → canonical / business
-→ ai derived layer
+→ AI derived layer
+→ model inference artifacts
+→ ranking artifacts
+→ dashboard exports
 → query / views
-→ artifacts / ops
-→ demo / dashboard futuro
+→ operations / QA
 ```
 
 Esta separación permite depurar, reejecutar y evolucionar cada parte sin romper el resto.
@@ -62,33 +58,27 @@ Esta separación permite depurar, reejecutar y evolucionar cada parte sin romper
 
 ### 2.3. No perder el raw
 
-La información original descargada desde la fuente se conserva siempre antes de aplicar limpieza o normalización.
-
-El raw actúa como evidencia auditable y permite reconstruir transformaciones posteriores.
+La información original descargada desde la fuente se conserva antes de aplicar limpieza o normalización. El raw actúa como evidencia auditable y permite reconstruir transformaciones posteriores.
 
 ---
 
 ### 2.4. Modelo canónico interno
 
-Las fuentes externas no se consideran el modelo final.
-
-La entidad central del sistema es `place`, mientras que `place_source_ref` conserva la representación específica de cada fuente.
+Las fuentes externas no son el modelo final. La entidad central del sistema es `place`, mientras que `place_source_ref` conserva la representación específica de cada fuente.
 
 Esto permite integrar datos de:
 
 - OSM / Overpass;
 - Google Places;
 - Google Places Reviews;
-- Yelp Open Dataset como prototipo IA;
+- Yelp Open Dataset como corpus/prototipo IA;
 - futuras fuentes.
 
 ---
 
 ### 2.5. Capa IA derivada, no invasiva
 
-Los resultados IA no se incrustan directamente en `place` ni sustituyen al core del modelo.
-
-La arquitectura añade una capa derivada formada por:
+Los resultados IA no se incrustan directamente en `place` ni sustituyen al core del modelo. La arquitectura añade una capa derivada formada por:
 
 - `dish`;
 - `dish_alias`;
@@ -110,37 +100,41 @@ dato IA       → qué platos se detectan, cómo se valoran y cómo se rankean
 
 Todo resultado IA debe saber con qué modelo, regla o método fue generado.
 
-Por eso la arquitectura incluye:
+El proyecto usa dos niveles complementarios:
 
-- `ai_model_version`, para registrar modelos, reglas o métodos IA;
-- `ai_pipeline_run`, para registrar ejecuciones concretas de importación, inferencia, agregación o ranking.
+1. **Versionado en PostgreSQL**, mediante `ai_model_version` y `ai_pipeline_run`, para resultados cargados.
+2. **Versionado por artefactos**, mediante carpetas, summaries JSON, modelos locales y exports, para la fase IA v2 y dashboards.
 
-Este principio se aplica tanto al prototipo Yelp como al piloto Sevilla.
+Este principio se aplica a:
+
+- prototipo Yelp;
+- piloto Sevilla v1;
+- fase Sevilla IA v2;
+- comparaciones entre rankings;
+- exports de dashboard.
 
 ---
 
 ### 2.7. Verticales completas
 
-El proyecto se construye por verticales de fuente o módulo.
-
-Cada vertical debe recorrer un flujo completo:
+El proyecto se construye por verticales de fuente o módulo. Cada vertical debe recorrer un flujo completo:
 
 ```text
 adquisición / preparación
 → raw o input controlado
 → transformación
-→ persistencia
+→ persistencia o artefacto estable
 → check
 → documentación
 ```
 
-Esto se ha seguido tanto en las fuentes de datos como en la integración IA.
+Esto se ha seguido tanto en las fuentes de datos como en la integración IA, dashboards y fase Sevilla IA v2.
 
 ---
 
 ### 2.8. Extensibilidad
 
-La arquitectura está planteada para soportar nuevas fuentes, nuevos modelos, nuevas reglas de ranking, una futura capa de API y un dashboard sin rediseñar el núcleo del sistema.
+La arquitectura está planteada para soportar nuevas fuentes, nuevos modelos, nuevas reglas de ranking, una futura capa de API y dashboards adicionales sin rediseñar el núcleo del sistema.
 
 ---
 
@@ -157,13 +151,21 @@ fuentes externas
 → enriquecimiento geográfico
 → deduplicación / matching
 → persistencia canónica
+→ reviews
 → capa IA derivada
-→ vistas de consulta
-→ scripts demo
-→ dashboard / API futura
+→ modelos entrenados / inferencia local
+→ señales local-plato
+→ ranking Hidden Gems
+→ comparación de versiones
+→ dashboard / explotación analítica
 ```
 
-Esta arquitectura permite distinguir tres grandes familias de flujo.
+La arquitectura distingue cuatro grandes familias de flujo:
+
+1. **Flujos de referencia**, para geografía y datos estructurales.
+2. **Flujos de negocio**, para locales, categorías, fuentes y reseñas.
+3. **Flujos IA derivados**, para platos, menciones, sentimiento, señales y ranking.
+4. **Flujos de explotación**, para consultas, exports y dashboards.
 
 ---
 
@@ -224,13 +226,35 @@ review
 → dish_mention_sentiment
 → dish_place_signal
 → hidden_gem_candidate
-→ views de consulta
+→ views / artifacts / dashboard
 ```
 
-Actualmente existen dos aplicaciones de este flujo:
+Actualmente existen tres aplicaciones principales de este flujo:
 
 1. **Yelp prototype**, usado para validar arquitectura e integración IA con corpus externo.
-2. **Sevilla pilot**, usado para validar el flujo local con reviews reales de Google Places Sevilla.
+2. **Sevilla pilot v1**, usado para validar el flujo local con reviews reales de Google Places Sevilla.
+3. **Sevilla IA v2**, usado como fase avanzada con modelos entrenados, inferencia local, ranking v2, comparación v1/v2 y dashboard final.
+
+---
+
+## 3.4. Flujos de explotación analítica
+
+El proyecto no se queda en la persistencia de datos. También genera outputs consultables:
+
+```text
+ranking artifacts
+→ dashboard export
+→ Streamlit dashboard
+→ análisis territorial / platos / locales / reseñas
+```
+
+Dashboards actuales:
+
+```text
+dashboard/streamlit_app.py              → dashboard Sevilla v1
+dashboard/streamlit_yelp_app.py         → dashboard Yelp
+dashboard/streamlit_sevilla_v2_app.py   → dashboard Sevilla IA v2
+```
 
 ---
 
@@ -238,9 +262,7 @@ Actualmente existen dos aplicaciones de este flujo:
 
 ## 4.1. Capa raw
 
-Es la primera capa persistente del pipeline.
-
-Aquí se almacena la descarga original de cada fuente sin transformaciones destructivas.
+Primera capa persistente del pipeline. Almacena la descarga original de cada fuente sin transformaciones destructivas.
 
 Responsabilidades:
 
@@ -253,9 +275,7 @@ Responsabilidades:
 
 ## 4.2. Capa staging
 
-Es la capa intermedia de trabajo.
-
-Aquí se realizan:
+Capa intermedia de trabajo. Aquí se realizan:
 
 - validaciones estructurales;
 - limpieza básica;
@@ -264,30 +284,21 @@ Aquí se realizan:
 - deduplicación;
 - artefactos auxiliares de perfilado y control.
 
-Ejemplos:
-
-- candidatos normalizados de locales desde Overpass;
-- staging de Google Places;
-- staging de Google Places Reviews;
-- subsets de Yelp Open Dataset.
-
 ---
 
 ## 4.3. Capa reference
 
-Esta capa almacena datos de referencia relativamente estables.
+Almacena datos de referencia relativamente estables.
 
 Ejemplo principal:
 
 - barrios y distritos de Sevilla.
 
-Estos datos sirven como soporte estructural para enriquecimiento geográfico y segmentación territorial.
-
 ---
 
 ## 4.4. Capa canónica / de negocio
 
-Es la capa donde vive la representación consolidada del dominio.
+Representación consolidada del dominio.
 
 Entidades principales:
 
@@ -297,13 +308,11 @@ Entidades principales:
 - `place_category`;
 - `place_neighborhood_assignment`.
 
-Aquí ya no se trabaja con la forma exacta en la que cada fuente entrega sus datos, sino con una estructura interna coherente.
-
 ---
 
 ## 4.5. Capa IA derivada
 
-Esta capa almacena resultados de análisis inteligente sobre las reseñas.
+Almacena resultados de análisis inteligente sobre las reseñas.
 
 Entidades principales:
 
@@ -327,11 +336,37 @@ plato detectado
 
 ---
 
-## 4.6. Capa query / views
+## 4.6. Capa de inferencia IA v2
 
-Esta capa expone vistas SQL preparadas para consulta y demo.
+En la fase Sevilla IA v2 se añade una capa de inferencia local basada en modelos entrenados. Estos modelos no se suben al repositorio, pero se usan localmente desde `models/`.
 
-Se define en:
+Modelos principales:
+
+```text
+models/sevilla_dish_ner_beto_v1_2/
+models/sevilla_dish_normalization_reranker_beto_v1/
+models/sevilla_mention_sentiment_absa_beto_v1/
+```
+
+Flujo:
+
+```text
+reviews / mentions
+→ NER v1.2
+→ hybrid + NER candidates v2
+→ normalization reranker v1
+→ ABSA sentiment v1
+→ place-dish signals v2
+→ ranking v2
+```
+
+---
+
+## 4.7. Capa query / views
+
+Expone vistas SQL preparadas para consulta y demo.
+
+Se define principalmente en:
 
 ```text
 db/ddl/08_ai_views.sql
@@ -350,9 +385,9 @@ Estas vistas permiten consultar el ranking IA sin trabajar directamente con las 
 
 ---
 
-## 4.7. Capa artifacts / ops
+## 4.8. Capa artifacts / ops
 
-Incluye todos los artefactos operativos que ayudan a ejecutar, revisar y validar el sistema.
+Incluye artefactos operativos que ayudan a ejecutar, revisar y validar el sistema.
 
 Ejemplos:
 
@@ -362,18 +397,38 @@ Ejemplos:
 - resultados de deduplicación;
 - resultados de importación;
 - checks de IA;
-- informes JSON de carga;
-- exports de demo.
+- reports JSON de carga;
+- outputs de ranking;
+- exports de dashboard;
+- comparaciones v1/v2.
+
+---
+
+## 4.9. Capa dashboard
+
+Capa de explotación visual con Streamlit.
+
+Incluye:
+
+- KPIs del ranking;
+- top global;
+- análisis territorial;
+- mapas con coordenadas;
+- análisis por plato y local;
+- evidencias y calidad;
+- comparación v1/v2;
+- detalle de menciones y reseñas;
+- explicación de scoring.
 
 ---
 
 ## 5. Componentes principales del sistema
 
-## 5.1. Configuración
+### 5.1. Configuración
 
 Se centraliza en `src/config/`.
 
-Aquí se definen:
+Define:
 
 - settings del entorno;
 - rutas de datos;
@@ -383,44 +438,36 @@ Aquí se definen:
 
 ---
 
-## 5.2. Conectores
+### 5.2. Conectores
 
 Se encuentran en `src/connectors/`.
 
-Son responsables de la interacción directa con la fuente:
+Responsables de:
 
 - construir consultas;
 - descargar respuestas;
 - registrar `source_run`;
 - persistir raw.
 
-Ejemplos:
-
-- Sevilla Geo;
-- Overpass;
-- Google Places.
-
 ---
 
-## 5.3. Transformadores y normalización
+### 5.3. Transformadores y normalización
 
 Se ubican en módulos como `src/geo/` y `src/normalization/`.
 
-Aquí se adapta la lógica específica de cada fuente a estructuras comunes del proyecto.
+Adaptan la lógica específica de cada fuente a estructuras comunes.
 
 ---
 
-## 5.4. Deduplicación y matching
+### 5.4. Deduplicación y matching
 
-Esta parte reduce ruido, agrupa duplicados probables y prepara la consolidación multi-fuente.
-
-Actualmente existe deduplicación intra-fuente y se deja preparado el camino para matching más avanzado entre OSM, Google Places y otras fuentes.
+Reduce ruido, agrupa duplicados probables y prepara la consolidación multi-fuente.
 
 ---
 
-## 5.5. Importadores y loaders
+### 5.5. Importadores y loaders
 
-Los importadores convierten resultados transformados en escritura controlada sobre el modelo canónico, de referencia o IA.
+Convierten resultados transformados en escritura controlada sobre el modelo canónico, de referencia o IA.
 
 Ejemplos:
 
@@ -433,9 +480,9 @@ Ejemplos:
 
 ---
 
-## 5.6. Base de datos
+### 5.6. Base de datos
 
-La persistencia principal del proyecto se apoya en **PostgreSQL + PostGIS**.
+La persistencia principal se apoya en **PostgreSQL + PostGIS**.
 
 Se eligió porque permite:
 
@@ -447,11 +494,11 @@ Se eligió porque permite:
 
 ---
 
-## 5.7. Notebooks IA
+### 5.7. Notebooks IA
 
-La fase IA se desarrolló inicialmente mediante notebooks para exploración, entrenamiento y validación.
+La fase IA se desarrolló inicialmente en notebooks para exploración, entrenamiento y validación.
 
-### Prototipo Yelp
+#### Prototipo Yelp
 
 ```text
 04_dish_detection_dataset_exploration
@@ -464,7 +511,7 @@ La fase IA se desarrolló inicialmente mediante notebooks para exploración, ent
 11_hidden_gems_ranking_v1
 ```
 
-### Piloto Sevilla
+#### Piloto Sevilla v1
 
 ```text
 12_sevilla_reviews_ai_exploration
@@ -475,7 +522,16 @@ La fase IA se desarrolló inicialmente mediante notebooks para exploración, ent
 17_sevilla_hidden_gems_ranking_pilot
 ```
 
-Posteriormente, sus artefactos se integraron en PostgreSQL mediante loaders controlados.
+#### Sevilla IA v2
+
+```text
+NER v1.2 training
+normalization/entity linking reranker training
+mention sentiment ABSA training
+local inference scripts
+ranking v2
+dashboard v2
+```
 
 ---
 
@@ -492,7 +548,9 @@ La arquitectura lógica se refleja directamente en la estructura del repositorio
 - `src/nlp/` → soporte previsto para evolución NLP/IA;
 - `src/db/` → conexión y utilidades de base de datos;
 - `src/utils/` → logging y soporte transversal;
-- `scripts/` → puntos de entrada operativos, loaders, checks y consultas demo.
+- `scripts/` → puntos de entrada operativos, loaders, checks, consultas demo e inferencia IA;
+- `dashboard/` → dashboards Streamlit;
+- `models/` → modelos locales no versionados.
 
 ### Datos
 
@@ -501,7 +559,7 @@ La arquitectura lógica se refleja directamente en la estructura del repositorio
 - `data/reference/` → datasets de referencia;
 - `data/artifacts/` → logs, checks y resultados operativos;
 - `data/artifacts/ai/` → artefactos IA, informes de carga, checks y demos;
-- `data/artifacts/ai/sevilla/` → artefactos específicos del piloto Sevilla.
+- `data/artifacts/ai/sevilla/` → artefactos específicos de Sevilla, incluyendo v1 y v2.
 
 ### Persistencia SQL
 
@@ -513,43 +571,43 @@ La arquitectura lógica se refleja directamente en la estructura del repositorio
 
 ## 7. Decisiones arquitectónicas importantes
 
-## 7.1. `place` como entidad canónica
+### 7.1. `place` como entidad canónica
 
-No se usa una fuente externa como representación final del local. `place` es la entidad interna estable del sistema.
+No se usa una fuente externa como representación final del local. `place` es la entidad interna estable.
 
 ---
 
-## 7.2. `place_source_ref` como capa de representación fuente
+### 7.2. `place_source_ref` como capa de representación fuente
 
 Cada local puede tener múltiples referencias por fuente. Esto evita mezclar directamente datos de OSM, Google o Yelp.
 
 ---
 
-## 7.3. `review` ligada a fuente
+### 7.3. `review` ligada a fuente
 
 Las reseñas son source-bound. No se fusionan automáticamente entre fuentes.
 
 ---
 
-## 7.4. Geografía separada del local
+### 7.4. Geografía separada del local
 
 La asignación de barrio se maneja mediante `place_neighborhood_assignment`, no como columna fija dentro de `place`.
 
 ---
 
-## 7.5. Calidad como entidad explícita
+### 7.5. Calidad como entidad explícita
 
 Las incidencias relevantes se modelan en `validation_issue`, no solo en logs.
 
 ---
 
-## 7.6. IA separada del core
+### 7.6. IA separada del core
 
-Las tablas IA son derivadas y versionadas. No contaminan el core del dominio y pueden recalcularse con nuevas versiones.
+Las tablas IA son derivadas y versionadas. No contaminan el core del dominio y pueden recalcularse.
 
 ---
 
-## 7.7. Yelp como prototipo IA
+### 7.7. Yelp como prototipo IA
 
 Yelp Open Dataset se utiliza como corpus y prototipo para validar el módulo IA completo.
 
@@ -564,7 +622,7 @@ No representa ranking final por barrios de Sevilla.
 
 ---
 
-## 7.8. Sevilla pilot como primera ejecución local real
+### 7.8. Sevilla pilot como primera ejecución local real
 
 Las reviews de Google Places Sevilla se usan para validar el flujo local real.
 
@@ -582,6 +640,30 @@ db_ranking_scope = other
 ```
 
 pero conserva la traza `sevilla_pilot` en `ranking_config_json`.
+
+---
+
+### 7.9. Sevilla IA v2 como fase avanzada de modelos
+
+La fase IA v2 no sustituye al piloto v1, sino que lo amplía.
+
+Se entrena y aplica una cadena especializada:
+
+```text
+NER de platos
+→ normalización/entity linking
+→ sentimiento por mención ABSA
+→ señales place-dish
+→ ranking v2
+```
+
+El resultado se mantiene como experimental:
+
+```text
+is_production_ready_v2 = false
+```
+
+pero ya se explota en dashboard como MVP analítico final para entrega académica.
 
 ---
 
@@ -630,7 +712,7 @@ Actualmente la arquitectura ya está operativa en varios bloques completos.
 - vistas SQL de consulta;
 - script demo de ranking.
 
-### Piloto IA Sevilla
+### Piloto IA Sevilla v1
 
 - exportación de reviews reales desde PostgreSQL;
 - exploración del corpus;
@@ -641,22 +723,48 @@ Actualmente la arquitectura ya está operativa en varios bloques completos.
 - ranking `sevilla_pilot`;
 - carga en PostgreSQL;
 - check completo sin errores ni warnings;
-- script demo de consulta Sevilla.
+- script demo de consulta Sevilla;
+- dashboard/export inicial.
+
+### Sevilla IA v2
+
+- entrenamiento de modelos específicos en Kaggle;
+- inferencia local con modelos guardados en `models/`;
+- combinación híbrida + NER;
+- normalización con reranker;
+- sentimiento ABSA;
+- señales local-plato v2;
+- ranking Hidden Gems Sevilla v2;
+- comparación v1 vs v2;
+- export dashboard v2;
+- dashboard Streamlit Sevilla IA v2.
+
+Resultados principales del ranking v2:
+
+```text
+candidatos puntuados: 2.335
+candidatos seleccionados: 268
+locales seleccionados: 198
+platos seleccionados: 40
+barrios seleccionados: 67
+distritos seleccionados: 11
+```
 
 ---
 
 ## 9. Evolución prevista
 
-La arquitectura está preparada para incorporar próximamente:
+La arquitectura queda cerrada para entrega académica como MVP técnico avanzado. A partir de este punto, las siguientes líneas pertenecen a una fase futura de producto/producción:
 
-- consolidación de scripts demo finales;
-- contrato de datos para dashboard;
-- dashboard piloto, preferiblemente con Streamlit;
-- revisión visual y funcional de resultados;
-- posible API mínima con FastAPI;
-- mejora de reglas IA;
-- posible entrenamiento o adaptación de modelos en español/multilingües;
-- promoción controlada hacia ranking productivo cuando haya validación suficiente.
+- validación humana del top ranking;
+- mejora del catálogo y aliases de platos;
+- ajuste de penalización para platos demasiado genéricos;
+- descarga automática de modelos desde Drive u otro repositorio privado;
+- tests automáticos más completos;
+- API mínima con FastAPI;
+- despliegue del dashboard;
+- automatización programada de la cadena completa;
+- posible promoción controlada a ranking productivo tras validación.
 
 ---
 
@@ -670,4 +778,4 @@ La arquitectura de Hidden Gems se ha diseñado para equilibrar cinco necesidades
 - construcción progresiva de un modelo canónico útil;
 - explotación inteligente mediante una capa IA derivada.
 
-La arquitectura ya no solo prepara el terreno para NLP y ranking: actualmente contiene una integración IA completa validada con Yelp como prototipo y una primera ejecución local real sobre Sevilla con Google Places Reviews, ranking piloto cargado, validado y consultable.
+El estado final de entrega ya no es únicamente un piloto: el proyecto contiene una arquitectura completa de datos + IA + ranking + dashboard, con Yelp como prototipo externo, Sevilla v1 como baseline local y Sevilla IA v2 como MVP analítico final asistido por modelos.

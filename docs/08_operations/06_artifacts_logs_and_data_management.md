@@ -1,5 +1,8 @@
 # 06. Gestión de artefactos, logs y datos locales
 
+
+
+
 ## 1. Objetivo del documento
 
 Este documento define cómo debe gestionarse la información generada por el pipeline de **Hidden Gems** durante la ejecución de ingestas, transformaciones, checks, notebooks, cargas IA y demos.
@@ -674,3 +677,104 @@ Git limpio también.
 ```
 
 Mantener esta separación permite que Hidden Gems siga creciendo sin que el repositorio se vuelva pesado, inseguro o difícil de operar.
+
+---
+
+## 22. Artefactos Sevilla IA v2
+
+La fase Sevilla IA v2 añade una nueva capa de artefactos:
+
+```text
+data/artifacts/ai/sevilla/model_inference/
+├── ner_v1_2/
+├── ner_v1_2_cleaned/
+├── hybrid_ner_v2/
+├── normalization_reranker_v1/
+├── sentiment_absa_v1/
+├── place_dish_signals_v2/
+├── ranking_v2/
+└── ranking_v2_comparison/
+```
+
+Export de dashboard:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Archivos principales de dashboard v2:
+
+```text
+ranking_detail.csv
+selected_candidates.csv
+top_global.csv
+top_by_district.csv
+top_by_neighborhood.csv
+top_by_dish.csv
+district_summary.csv
+neighborhood_summary.csv
+dish_summary.csv
+place_summary.csv
+tier_summary.csv
+evidence_summary.csv
+quality_summary.csv
+mention_examples.csv
+place_coordinates.csv
+comparison/
+```
+
+`mention_examples.csv` puede contener texto completo si se generó con `--include-full-review-text`; no debe versionarse.
+
+---
+
+## 23. Modelos entrenados locales
+
+Los modelos de la fase v2 se guardan en:
+
+```text
+models/
+```
+
+Reglas:
+
+```text
+1. No subir models/ a Git.
+2. Mantener los modelos localmente para ejecutar inferencia.
+3. Documentar nombre, función y versión.
+4. En producción futura, implementar descarga automática si no existen.
+```
+
+Añadir a `.gitignore`:
+
+```gitignore
+models/
+```
+
+---
+
+## 24. Regla de entrega académica
+
+Versionar:
+
+```text
+README.md
+docs/**/*.md
+scripts/*.py
+dashboard/*.py
+requirements.txt
+.env.example
+.gitignore
+db/ddl/*.sql
+```
+
+Mantener fuera de Git:
+
+```text
+models/
+data/raw/
+data/staging/
+data/external/
+data/artifacts/ai/**/*.jsonl
+data/artifacts/ai/**/*.csv
+data/artifacts/ai/sevilla/dashboard_v2/*.csv
+```

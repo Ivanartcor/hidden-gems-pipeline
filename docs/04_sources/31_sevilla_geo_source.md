@@ -416,3 +416,55 @@ Sevilla Geo es una fuente fundamental para Hidden Gems Pipeline porque proporcio
 Su implementación permite que el sistema no dependa solo de coordenadas aisladas, sino de una geografía normalizada y consultable dentro de PostgreSQL/PostGIS.
 
 Gracias a esta vertical, el resto de fuentes de negocio pueden enriquecerse con barrio y distrito, lo que conecta directamente con el objetivo principal de Hidden Gems: descubrir información gastronómica localizada y útil por zonas concretas de Sevilla.
+
+
+---
+
+## 18. Relación con Sevilla IA v2 y dashboard final
+
+En la fase Sevilla IA v2, la fuente Sevilla Geo mantiene su papel como base territorial oficial del sistema.
+
+Aunque esta fuente no aporta reseñas ni platos, es imprescindible para que los resultados finales puedan interpretarse correctamente por:
+
+- distrito;
+- barrio;
+- cobertura territorial;
+- distribución de candidatos Hidden Gems;
+- filtros del dashboard;
+- mapa del dashboard Sevilla IA v2.
+
+El export final del dashboard v2 conserva y utiliza campos territoriales normalizados como:
+
+```text
+district_name_std
+neighborhood_name_std
+```
+
+También permite mostrar resultados agregados en archivos como:
+
+```text
+district_summary.csv
+neighborhood_summary.csv
+top_by_district.csv
+top_by_neighborhood.csv
+filter_options.json
+```
+
+Por tanto, Sevilla Geo queda como una fuente estable y cerrada dentro de la entrega, pero sigue siendo crítica para que el ranking no sea un simple listado de locales, sino un ranking contextualizado territorialmente.
+
+---
+
+## 19. Estado final en la entrega académica
+
+La vertical Sevilla Geo se considera cerrada para la entrega:
+
+```text
+[OK] geografía oficial cargada
+[OK] distritos disponibles
+[OK] barrios disponibles
+[OK] soporte para asignación de locales
+[OK] soporte para dashboard territorial
+[OK] soporte para ranking por barrio/distrito
+```
+
+No requiere cambios funcionales para la fase entregada. Las mejoras futuras se limitarían a actualizar la fuente si cambian los límites oficiales o a mejorar la precisión visual del mapa si se incorporan nuevas geometrías o capas GIS al dashboard.

@@ -396,4 +396,127 @@ La estrategia de fuentes de Hidden Gems combina datos estructurales, locales, re
 
 El proyecto ya no está solo preparado para aplicar IA a Sevilla: el flujo se ha ejecutado con reviews reales de Google Places y ha generado un piloto `sevilla_pilot` cargado y consultable.
 
-La siguiente fase de fuentes no es añadir más orígenes sin control, sino mejorar cobertura, revisar calidad, preparar dashboard y decidir si se amplía la extracción de reviews o se mejora el modelo IA.
+La fase final de entrega no requiere añadir más fuentes, sino consolidar las ya integradas mediante Sevilla IA v2, dashboard final y documentación completa. Las mejoras futuras se orientarán a producción, mayor cobertura y validación humana.
+
+
+---
+
+## Actualización final: fase Sevilla IA v2 y entrega académica
+
+Tras la fase inicial de piloto `sevilla_pilot`, el proyecto ha incorporado una segunda capa local más avanzada: **Sevilla IA v2**. Esta fase no añade una fuente nueva, sino que explota de forma más profunda la fuente operativa principal de reviews locales: **Google Places Reviews Sevilla**.
+
+La relación entre fuentes y resultados queda ahora así:
+
+```text
+Sevilla Geo
+→ soporte territorial oficial
+→ distritos, barrios y asignación geográfica
+
+OSM / Overpass
+→ base abierta de locales gastronómicos
+→ apoyo a cobertura y consolidación de `place`
+
+Google Places Text Search
+→ descubrimiento y enriquecimiento de locales reales en Sevilla
+→ `place` + `place_source_ref` + coordenadas + categorías
+
+Google Places Reviews
+→ reviews reales locales
+→ corpus local para IA v1/v2
+→ ranking Sevilla IA v2
+
+Yelp Open Dataset
+→ corpus externo y benchmark/prototipo IA
+→ no producción Sevilla
+```
+
+La fase Sevilla IA v2 se apoya en las mismas fuentes ya documentadas, pero añade una cadena de modelos y artefactos derivados:
+
+```text
+Google Places Reviews Sevilla
+→ NER de platos entrenado
+→ combinación Hybrid + NER
+→ normalización / entity linking con reranker BETO
+→ sentimiento por mención / ABSA con BETO
+→ señales place-dish v2
+→ ranking Hidden Gems Sevilla v2
+→ comparación v1 vs v2
+→ export dashboard_v2
+→ dashboard Streamlit Sevilla IA v2
+```
+
+Resultados principales del export final de dashboard v2:
+
+| Métrica | Valor |
+|---|---:|
+| Candidatos puntuados v2 | 2.335 |
+| Candidatos seleccionados v2 | 268 |
+| Locales seleccionados v2 | 198 |
+| Platos seleccionados v2 | 40 |
+| Barrios seleccionados v2 | 67 |
+| Distritos seleccionados v2 | 11 |
+| Menciones seleccionadas v2 | 651 |
+| Reviews seleccionadas v2 | 627 |
+| Coincidencias v1/v2 | 119 |
+| Cobertura de v1 dentro de v2 | 79,3 % |
+| Nuevos locales seleccionados frente a v1 | +76 |
+| Nuevos barrios seleccionados frente a v1 | +12 |
+
+El estado final para la entrega académica es:
+
+```text
+MVP técnico avanzado / prototipo analítico funcional
+is_production_ready = false
+```
+
+Por tanto, las fuentes ya no solo permiten preparar un piloto, sino sostener una demostración completa de adquisición, procesamiento, IA aplicada, ranking, comparación y visualización.
+
+
+---
+
+## 16. Estado final de las fuentes en la entrega
+
+En la entrega académica, el bloque de fuentes queda cerrado con esta interpretación:
+
+| Fuente | Papel final en la entrega | Resultado |
+|---|---|---|
+| Sevilla Geo | Referencia territorial oficial | Soporta distrito, barrio, mapa y filtros territoriales |
+| OSM / Overpass | Fuente abierta de locales | Apoya la cobertura inicial del modelo canónico |
+| Google Places Text Search | Descubrimiento y consolidación de locales | Fuente operativa principal de locales Sevilla |
+| Google Places Reviews | Reviews reales locales | Fuente principal de IA local Sevilla v1/v2 |
+| Yelp Open Dataset | Corpus externo/benchmark IA | Prototipo y apoyo al diseño del módulo IA |
+
+La diferencia clave frente a fases anteriores es que el flujo local ya no termina en `sevilla_pilot`; ahora existe una explotación avanzada mediante `sevilla_hidden_gems_ranking_v2` y `dashboard_v2`.
+
+---
+
+## 17. Relación actualizada entre fuentes y dashboard
+
+El dashboard final Sevilla IA v2 consume datos derivados de todas las capas:
+
+```text
+Sevilla Geo
+→ distritos / barrios / filtros / mapa
+
+Google Places
+→ locales / coordenadas / nombres / referencias externas
+
+Google Places Reviews
+→ reseñas / menciones / sentimiento / evidencias textuales
+
+Modelos IA v2
+→ normalización de platos / ABSA / señales / ranking
+
+Comparador v1-v2
+→ análisis de mejora y cobertura
+```
+
+Esto permite que el dashboard no sea solo una tabla de resultados, sino una capa de explotación territorial y explicativa.
+
+---
+
+## 18. Conclusión actualizada
+
+La estrategia de fuentes de Hidden Gems queda consolidada para la entrega académica. No se han añadido fuentes nuevas en la fase final, sino que se ha aumentado el valor extraído de las fuentes ya integradas, especialmente Google Places Reviews.
+
+La arquitectura de fuentes permite defender el proyecto como un sistema multisource trazable, con datos reales locales, corpus externo de apoyo y explotación analítica final mediante IA y dashboard.

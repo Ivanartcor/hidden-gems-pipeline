@@ -522,3 +522,66 @@ Yelp Open Dataset queda integrado como fuente de apoyo IA.
 Su función ya se ha cumplido en gran parte: permitió construir y validar la arquitectura IA completa.
 
 El proyecto ya ha dado el siguiente paso con Google Reviews Sevilla y el piloto `sevilla_pilot`, por lo que Yelp debe mantenerse como corpus/benchmark, no como eje de producto local.
+
+
+---
+
+## 24. Relación con la fase Sevilla IA v2
+
+Yelp no participa como fuente operativa local en Sevilla IA v2, pero sí conserva valor como antecedente y soporte metodológico.
+
+Su papel en el proyecto queda actualizado así:
+
+```text
+Yelp Open Dataset
+→ corpus amplio / prototipo IA / benchmark
+→ ayuda a diseñar el flujo de IA
+→ no producción local Sevilla
+```
+
+La fase Sevilla IA v2 utiliza como base real:
+
+```text
+Google Places Reviews Sevilla
+→ modelos entrenados/adaptados
+→ ranking local v2
+```
+
+Por tanto, Yelp queda separado de los resultados finales del dashboard Sevilla IA v2. Esta separación evita mezclar datos externos no territoriales con resultados locales de Sevilla.
+
+---
+
+## 25. Utilidad actual de Yelp tras cerrar la entrega
+
+Aunque el foco final está en Google Reviews Sevilla, Yelp sigue siendo útil para:
+
+- justificar la evolución inicial del módulo IA;
+- disponer de un corpus grande para pruebas futuras;
+- comparar enfoques de sentimiento y extracción de platos;
+- validar scripts generales de carga IA;
+- probar nuevas arquitecturas sin consumir cuotas de Google;
+- servir como benchmark externo.
+
+No debe usarse para:
+
+- ranking local Sevilla;
+- visualización de Hidden Gems Sevilla;
+- resultados productivos;
+- inferencias territoriales por barrio sevillano.
+
+---
+
+## 26. Estado final actualizado
+
+Yelp queda cerrado como fuente de apoyo:
+
+```text
+[OK] corpus/prototipo IA validado
+[OK] integración PostgreSQL validada
+[OK] ranking yelp_prototype consultable
+[OK] utilidad metodológica para la IA del proyecto
+[NO] producción Sevilla
+[NO] dashboard Sevilla IA v2
+```
+
+El foco final de la entrega se apoya en Google Places Reviews para resultados locales, manteniendo Yelp como corpus externo documentado y controlado.

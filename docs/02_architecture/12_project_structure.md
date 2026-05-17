@@ -2,7 +2,7 @@
 
 ## 1. Objetivo de la estructura del proyecto
 
-La estructura de **Hidden Gems** no se ha organizado solo para guardar archivos, sino para reflejar directamente la arquitectura lógica del sistema.
+La estructura de **Hidden Gems Pipeline** no se ha organizado solo para guardar archivos, sino para reflejar directamente la arquitectura lógica del sistema.
 
 Cada bloque del repositorio responde a una necesidad concreta del pipeline:
 
@@ -16,7 +16,8 @@ Cada bloque del repositorio responde a una necesidad concreta del pipeline:
 - documentación;
 - artefactos de ejecución;
 - consulta demo;
-- futura visualización.
+- dashboards;
+- modelos locales no versionados.
 
 El objetivo es que la organización física del proyecto facilite:
 
@@ -30,16 +31,24 @@ El objetivo es que la organización física del proyecto facilite:
 
 A nivel general, el proyecto se organiza en los siguientes bloques principales:
 
-- raíz del proyecto;
-- `data/`;
-- `db/`;
-- `docs/`;
-- `notebooks/`;
-- `scripts/`;
-- `src/`;
-- `tests/`.
-
-Cada uno cumple una función concreta dentro del pipeline.
+```text
+hidden-gems-pipeline/
+├── data/
+├── dashboard/
+├── db/
+├── docs/
+├── models/          # local, no versionado
+├── notebooks/
+├── scripts/
+├── src/
+├── tests/
+├── .env
+├── .env.example
+├── .gitignore
+├── main.py
+├── README.md
+└── requirements.txt
+```
 
 ---
 
@@ -60,19 +69,19 @@ En la raíz se ubican los archivos básicos de entrada, configuración y arranqu
 
 #### `.env`
 
-Contiene la configuración real del entorno local.
+Contiene la configuración real del entorno local. No debe versionarse.
 
 #### `.env.example`
 
-Sirve como plantilla para configurar el proyecto en otros entornos.
+Plantilla pública para configurar el proyecto en otros entornos.
 
 #### `.gitignore`
 
-Evita versionar ficheros sensibles, temporales o datasets pesados.
+Evita versionar ficheros sensibles, temporales, datasets pesados, artefactos masivos y modelos.
 
 #### `main.py`
 
-Punto de entrada mínimo del proyecto. Su función actual es inicializar el pipeline y comprobar el entorno base.
+Punto de entrada mínimo del proyecto.
 
 #### `README.md`
 
@@ -80,7 +89,7 @@ Documento principal de entrada al repositorio.
 
 #### `requirements.txt`
 
-Lista de dependencias del proyecto.
+Lista de dependencias del proyecto, incluyendo dependencias de pipeline, IA y dashboards.
 
 ---
 
@@ -88,24 +97,22 @@ Lista de dependencias del proyecto.
 
 La carpeta `data/` agrupa artefactos de datos y resultados de ejecución fuera de la base de datos.
 
-Su organización refleja las capas operativas del pipeline.
-
 ---
 
 ## 4.1. `data/raw/`
 
-Aquí se almacenan los assets originales descargados o leídos desde las fuentes.
+Almacena assets originales descargados o leídos desde fuentes.
 
-### Ejemplos
+Ejemplos:
 
-- `data/raw/osm_overpass/...`;
-- `data/raw/sevilla_geo/...`;
-- `data/raw/google_places/...`;
-- `data/raw/google_places_reviews/...`.
+- `data/raw/osm_overpass/`;
+- `data/raw/sevilla_geo/`;
+- `data/raw/google_places/`;
+- `data/raw/google_places_reviews/`.
 
-### Función
+Función:
 
-- conservar la respuesta fuente sin transformación destructiva;
+- conservar respuesta fuente sin transformación destructiva;
 - permitir auditoría;
 - facilitar reejecuciones y depuración;
 - mantener trazabilidad entre ejecución y asset.
@@ -114,21 +121,21 @@ Aquí se almacenan los assets originales descargados o leídos desde las fuentes
 
 ## 4.2. `data/staging/`
 
-Aquí se guardan artefactos intermedios derivados del raw.
+Guarda artefactos intermedios derivados del raw.
 
-### Ejemplos
+Ejemplos:
 
 - `data/staging/osm_overpass/`;
 - `data/staging/google_places/`;
 - `data/staging/google_places_reviews/`;
 - `data/staging/yelp_open_dataset/`.
 
-### Función
+Función:
 
 - almacenar resultados de transformación intermedia;
 - separar raw de datos procesados;
 - guardar resultados de QA y deduplicación;
-- servir como capa de trabajo previa a la persistencia canónica.
+- servir como capa de trabajo previa a persistencia.
 
 ---
 
@@ -170,7 +177,7 @@ data/external/yelp_open_dataset/
 
 Agrupa artefactos operativos generados por scripts y procesos.
 
-### Ejemplos
+Ejemplos:
 
 - `logs/`;
 - `overpass_profiles/`;
@@ -192,7 +199,7 @@ Agrupa artefactos operativos generados por scripts y procesos.
 
 ## 4.6. `data/artifacts/ai/`
 
-Esta carpeta agrupa los artefactos específicos del módulo IA y su integración.
+Agrupa artefactos específicos del módulo IA y su integración.
 
 Estructura general:
 
@@ -208,21 +215,13 @@ data/artifacts/ai/
 └── sevilla/
 ```
 
-### Función
-
-- almacenar outputs de notebooks IA;
-- guardar reportes de loaders;
-- guardar checks de preparación e integridad;
-- guardar exports de la demo de ranking;
-- separar artefactos generales/Yelp de artefactos específicos del piloto Sevilla.
-
 ---
 
 ## 4.7. `data/artifacts/ai/sevilla/`
 
-Contiene los artefactos del piloto local Sevilla.
+Contiene artefactos del piloto local Sevilla y de la fase IA v2.
 
-Estructura esperada:
+Estructura relevante:
 
 ```text
 data/artifacts/ai/sevilla/
@@ -232,29 +231,108 @@ data/artifacts/ai/sevilla/
 ├── sentiment/
 ├── aggregation/
 ├── ranking/
-└── query_demo/
+├── query_demo/
+├── dashboard/
+├── dashboard_v2/
+└── model_inference/
+```
+
+### `model_inference/`
+
+Agrupa salidas de inferencia y ranking IA v2:
+
+```text
+data/artifacts/ai/sevilla/model_inference/
+├── hybrid_ner_v2/
+├── normalization_reranker_v1/
+├── sentiment_absa_v1/
+├── place_dish_signals_v2/
+├── ranking_v2/
+└── ranking_v2_comparison/
+```
+
+### `dashboard_v2/`
+
+Contiene el contrato de datos y CSV/JSON necesarios para el dashboard Sevilla IA v2:
+
+```text
+dashboard_metadata.json
+kpi_summary.json
+ranking_detail.csv
+selected_candidates.csv
+top_global.csv
+top_by_district.csv
+top_by_neighborhood.csv
+top_by_dish.csv
+district_summary.csv
+neighborhood_summary.csv
+dish_summary.csv
+place_summary.csv
+tier_summary.csv
+evidence_summary.csv
+quality_summary.csv
+mention_examples.csv
+comparison/
+data_contract.json
+dashboard_export_summary.json
+```
+
+---
+
+## 5. Carpeta `dashboard/`
+
+Contiene dashboards Streamlit del proyecto.
+
+Estructura actual recomendada:
+
+```text
+dashboard/
+├── streamlit_app.py
+├── streamlit_yelp_app.py
+└── streamlit_sevilla_v2_app.py
 ```
 
 ### Función
 
-- almacenar reviews exportadas para IA;
-- guardar resultados de notebooks 12–17;
-- conservar reportes de carga y checks del piloto;
-- generar CSV/JSON para scripts demo y dashboard futuro.
+- visualizar ranking Sevilla v1;
+- visualizar resultados Yelp/prototipo;
+- visualizar ranking Sevilla IA v2;
+- consultar KPIs, rankings, territorio, platos, locales, evidencia, calidad, comparación v1/v2 y reseñas.
 
 ---
 
-## 5. Carpeta `db/`
+## 6. Carpeta `models/`
 
-La carpeta `db/` agrupa todo lo relacionado con la persistencia SQL y la definición del modelo relacional.
+Carpeta local no versionada destinada a modelos entrenados.
+
+Ejemplos:
+
+```text
+models/
+├── sevilla_dish_ner_beto_v1_2/
+├── sevilla_dish_normalization_reranker_beto_v1/
+└── sevilla_mention_sentiment_absa_beto_v1/
+```
+
+### Función
+
+- almacenar modelos descargados desde Kaggle o Drive;
+- permitir inferencia local;
+- evitar subir pesos pesados al repositorio.
+
+Debe estar incluida en `.gitignore`.
 
 ---
 
-## 5.1. `db/ddl/`
+## 7. Carpeta `db/`
 
-Contiene los scripts de definición del schema.
+Agrupa todo lo relacionado con persistencia SQL y definición del modelo relacional.
 
-### Scripts actuales
+### `db/ddl/`
+
+Contiene scripts de definición del schema.
+
+Scripts principales:
 
 - `00_foundation.sql`;
 - `01_governance.sql`;
@@ -266,32 +344,21 @@ Contiene los scripts de definición del schema.
 - `07_ai_module.sql`;
 - `08_ai_views.sql`.
 
-### Función
-
-- definir la base de datos completa;
-- estructurar el schema por áreas lógicas;
-- facilitar creación, revisión y despliegue progresivo;
-- añadir la capa IA derivada y sus vistas de consulta.
-
----
-
-## 5.2. `db/queries/`
+### `db/queries/`
 
 Reservada para consultas auxiliares, comprobaciones o queries reutilizables.
 
----
-
-## 5.3. `db/seeds/`
+### `db/seeds/`
 
 Pensada para cargas iniciales o seeds controlados.
 
 ---
 
-## 6. Carpeta `docs/`
+## 8. Carpeta `docs/`
 
-La carpeta `docs/` está destinada a la documentación detallada del proyecto.
+Documentación detallada del proyecto.
 
-Estructura principal actual:
+Estructura actual:
 
 ```text
 docs/
@@ -300,37 +367,26 @@ docs/
 ├── 03_data_model/
 ├── 04_sources/
 ├── 05_verticals/
+├── 08_operations/
+├── 09_roadmap/
 ├── 10_ai_module/
 ├── 11_ai_integration/
-└── 12_sevilla_ai_pilot/
-```
-
-Algunas carpetas intermedias pueden existir o recuperarse en futuras reorganizaciones documentales, pero el bloque nuevo y relevante para el estado actual es:
-
-```text
-docs/12_sevilla_ai_pilot/
+├── 12_sevilla_ai_pilot/
+└── 13_sevilla_ai_v2/
 ```
 
 ### Función
 
 - separar documentación grande del README raíz;
 - mantener documentación técnica estructurada;
-- documentar decisiones, entidades, fuentes, verticales, IA, integración y piloto Sevilla;
+- documentar decisiones, entidades, fuentes, verticales, IA, integración, dashboards y fase v2;
 - permitir crecimiento ordenado del conocimiento del proyecto.
 
 ---
 
-## 7. Carpeta `notebooks/`
+## 9. Carpeta `notebooks/`
 
 Reservada para notebooks de exploración, validación o prototipado.
-
-### Función
-
-- análisis exploratorio;
-- entrenamiento y evaluación de modelos;
-- prototipos rápidos;
-- validaciones manuales;
-- pruebas de lógica antes de integrarla en scripts o módulos estables.
 
 ### Uso actual relevante
 
@@ -345,7 +401,7 @@ Reservada para notebooks de exploración, validación o prototipado.
 - agregación de señales;
 - ranking Hidden Gems v1.
 
-#### Piloto Sevilla
+#### Piloto Sevilla v1
 
 - exploración de reviews reales de Google;
 - detección de candidatos de platos en español;
@@ -354,17 +410,22 @@ Reservada para notebooks de exploración, validación o prototipado.
 - agregación de señales local-plato;
 - ranking `sevilla_pilot`.
 
+#### Sevilla IA v2
+
+- entrenamiento NER v1.2;
+- entrenamiento normalización/entity linking reranker;
+- entrenamiento ABSA por mención;
+- evaluación y análisis de errores.
+
 ---
 
-## 8. Carpeta `scripts/`
+## 10. Carpeta `scripts/`
 
-La carpeta `scripts/` concentra los puntos de entrada operativos del proyecto.
-
-Aquí se ubican los scripts ejecutables que recorren verticales completas o realizan comprobaciones concretas.
+Concentra los puntos de entrada operativos del proyecto.
 
 ---
 
-## 8.1. Scripts base de entorno
+## 10.1. Scripts base de entorno
 
 - `check_db_connection.py`;
 - `check_schema.py`;
@@ -372,7 +433,7 @@ Aquí se ubican los scripts ejecutables que recorren verticales completas o real
 
 ---
 
-## 8.2. Vertical Sevilla Geo
+## 10.2. Vertical Sevilla Geo
 
 - `run_sevilla_geo_ingestion.py`;
 - `load_sevilla_geo_reference.py`;
@@ -380,7 +441,7 @@ Aquí se ubican los scripts ejecutables que recorren verticales completas o real
 
 ---
 
-## 8.3. Vertical Overpass
+## 10.3. Vertical Overpass
 
 - `run_overpass_ingestion.py`;
 - `profile_overpass_raw.py`;
@@ -393,7 +454,7 @@ Aquí se ubican los scripts ejecutables que recorren verticales completas o real
 
 ---
 
-## 8.4. Vertical Google Places
+## 10.4. Vertical Google Places
 
 Incluye scripts para:
 
@@ -405,7 +466,7 @@ Incluye scripts para:
 
 ---
 
-## 8.5. Vertical Google Places Reviews
+## 10.5. Vertical Google Places Reviews
 
 Incluye scripts para:
 
@@ -417,7 +478,7 @@ Incluye scripts para:
 
 ---
 
-## 8.6. Vertical Yelp Open Dataset
+## 10.6. Vertical Yelp Open Dataset
 
 Incluye scripts para:
 
@@ -430,7 +491,7 @@ Incluye scripts para:
 
 ---
 
-## 8.7. Scripts IA e integración general
+## 10.7. Scripts IA e integración general
 
 Scripts principales:
 
@@ -443,18 +504,9 @@ Scripts principales:
 - `check_ai_ranking_loaded.py`;
 - `query_ai_ranking_demo.py`.
 
-### Función
-
-- cargar catálogo de platos y aliases;
-- importar core Yelp para prototipo IA;
-- cargar menciones y sentimiento;
-- cargar señales agregadas y ranking;
-- verificar integridad;
-- consultar resultados IA desde PostgreSQL.
-
 ---
 
-## 8.8. Scripts IA Sevilla Pilot
+## 10.8. Scripts IA Sevilla Pilot v1
 
 Scripts principales:
 
@@ -462,133 +514,82 @@ Scripts principales:
 - `check_ai_review_export.py`;
 - `load_sevilla_ai_pilot_outputs.py`;
 - `check_sevilla_ai_pilot_loaded.py`;
-- `query_sevilla_hidden_gems_demo.py`.
-
-### Función
-
-- exportar reviews reales de Google Places desde PostgreSQL a JSONL;
-- validar el export IA;
-- cargar outputs IA del piloto Sevilla;
-- comprobar integridad de la carga;
-- consultar el ranking `sevilla_pilot` mediante vistas SQL.
+- `query_sevilla_hidden_gems_demo.py`;
+- `export_sevilla_dashboard_data.py`.
 
 ---
 
-## 9. Carpeta `src/`
+## 10.9. Scripts Sevilla IA v2
 
-La carpeta `src/` contiene la lógica reutilizable y el núcleo real del pipeline.
+Scripts principales:
 
----
+- `build_sevilla_hybrid_ner_mention_candidates_v2.py`;
+- `run_sevilla_dish_normalization_reranker_v1.py`;
+- `run_sevilla_mention_sentiment_absa_v1.py`;
+- `build_sevilla_place_dish_signals_v2.py`;
+- `build_sevilla_hidden_gems_ranking_v2.py`;
+- `compare_sevilla_ranking_v1_vs_v2.py`;
+- `export_sevilla_dashboard_data_v2.py`.
 
-## 9.1. `src/config/`
+Función:
 
-Contiene la configuración central del sistema.
-
-### Función
-
-- centralizar variables y rutas;
-- registrar fuentes;
-- desacoplar configuración de la lógica del pipeline.
-
----
-
-## 9.2. `src/connectors/`
-
-Contiene conectores de adquisición por fuente.
-
-### Función
-
-- encapsular acceso a fuentes externas;
-- iniciar `source_run`;
-- descargar payloads;
-- persistir raw.
+- combinar extracción híbrida y NER;
+- aplicar normalización/entity linking;
+- aplicar sentimiento ABSA;
+- construir señales place-dish;
+- construir ranking v2;
+- comparar v1/v2;
+- exportar datos para dashboard.
 
 ---
 
-## 9.3. `src/db/`
+## 11. Carpeta `src/`
 
-Contiene utilidades de acceso a base de datos.
+Contiene la lógica reutilizable y el núcleo real del pipeline.
 
-### Función
+### `src/config/`
 
-- conexión SQLAlchemy;
-- punto común para acceso a PostgreSQL/PostGIS.
+Configuración central del sistema.
 
----
+### `src/connectors/`
 
-## 9.4. `src/geo/`
+Conectores de adquisición por fuente.
 
-Agrupa lógica específica de geografía y datasets territoriales.
+### `src/db/`
 
-### Función
+Utilidades de acceso a base de datos.
 
-- transformación geográfica;
-- importación de referencia territorial;
-- soporte a enriquecimiento geoespacial.
+### `src/geo/`
 
----
+Lógica específica de geografía y datasets territoriales.
 
-## 9.5. `src/ingestion/`
+### `src/ingestion/`
 
-Contiene lógica común de ingesta y trazabilidad.
+Lógica común de ingesta y trazabilidad.
 
-### Función
+### `src/normalization/`
 
-- gestionar ejecuciones de fuente;
-- registrar `source_run`;
-- persistir `raw_asset`;
-- soportar flujos de adquisición reutilizables.
+Contratos comunes de candidatos, normalización, deduplicación e importación.
 
----
-
-## 9.6. `src/normalization/`
-
-Es uno de los núcleos más importantes del sistema.
-
-### Función
-
-- definir contratos comunes de candidatos;
-- transformar fuentes a modelos intermedios;
-- deduplicar datos;
-- importar al modelo canónico.
-
----
-
-## 9.7. `src/nlp/`
+### `src/nlp/`
 
 Reservada para evolución de NLP/IA en código productivo.
 
-### Función prevista
+### `src/utils/`
 
-- limpieza lingüística;
-- análisis de reviews;
-- detección de platos;
-- scoring textual;
-- exportación de corpus desde base de datos;
-- adaptación futura a español/multilingüe.
+Utilidades transversales.
 
 ---
 
-## 9.8. `src/utils/`
-
-Contiene utilidades transversales.
-
-### Función
-
-- configuración de logging;
-- soporte común compartido entre módulos.
-
----
-
-## 10. Carpeta `tests/`
+## 12. Carpeta `tests/`
 
 Pensada para pruebas automáticas del proyecto.
 
-Actualmente todavía no es una de las partes más desarrolladas, pero su presencia marca una intención clara de evolución hacia un pipeline más verificable y estable.
+Aunque todavía no es una de las partes más desarrolladas, su presencia marca una intención clara de evolución hacia un pipeline más verificable y estable.
 
 ---
 
-## 11. Relación entre estructura y flujo real
+## 13. Relación entre estructura y flujo real
 
 La estructura actual refleja el flujo del sistema:
 
@@ -601,18 +602,27 @@ La estructura actual refleja el flujo del sistema:
 - `scripts/check_*` → comprobación;
 - `data/artifacts/` → observabilidad;
 - `data/artifacts/ai/` → artefactos IA;
-- `data/artifacts/ai/sevilla/` → artefactos IA del piloto Sevilla;
+- `data/artifacts/ai/sevilla/` → artefactos IA Sevilla v1/v2;
 - `db/ddl/07_ai_module.sql` → persistencia IA;
 - `db/ddl/08_ai_views.sql` → consulta IA;
-- `scripts/query_*` → demos de consulta.
+- `scripts/query_*` → demos de consulta;
+- `dashboard/` → explotación visual.
 
 ---
 
-## 12. Valoración de la estructura actual
+## 14. Valoración de la estructura actual
 
-La estructura actual ya es suficientemente sólida para soportar varias verticales, una capa IA integrada y un piloto local Sevilla sin convertirse en una colección desordenada de scripts.
+La estructura actual ya es suficientemente sólida para soportar:
 
-Sus principales fortalezas son:
+- varias verticales de fuente;
+- una capa IA integrada;
+- un piloto local Sevilla;
+- una fase IA v2 con modelos entrenados;
+- dashboards de explotación;
+- documentación técnica completa;
+- entrega académica del proyecto.
+
+Fortalezas:
 
 - separación clara entre código, datos y operación;
 - organización por responsabilidades;
@@ -621,22 +631,23 @@ Sus principales fortalezas son:
 - base preparada para crecer con nuevas fuentes;
 - documentación técnica organizada;
 - integración IA persistida y consultable;
-- piloto Sevilla documentado y validado.
+- dashboard final v2;
+- artefactos reproducibles para ranking y comparación.
 
-A medida que el proyecto siga creciendo, probablemente habrá que reforzar:
+A medida que el proyecto siga creciendo, convendrá reforzar:
 
 - `tests/`;
-- `src/nlp/` o una futura capa `src/ai/` si la lógica IA pasa de notebooks a código productivo;
-- scripts de consulta finales para dashboard;
+- `src/nlp/` o una futura capa `src/ai/` si la lógica IA pasa de scripts/notebooks a código productivo;
+- descarga automática de modelos;
 - capa API;
-- carpeta de dashboard si se implementa con Streamlit u otra herramienta.
+- despliegue del dashboard.
 
 ---
 
-## 13. Conclusión
+## 15. Conclusión
 
 La estructura del proyecto Hidden Gems no es accidental: responde a la arquitectura del sistema y al flujo real de procesamiento de datos.
 
-Cada carpeta está pensada para sostener una parte concreta del pipeline y facilitar que el proyecto pueda crecer sin perder orden, trazabilidad ni claridad.
+Cada carpeta sostiene una parte concreta del pipeline y permite que el proyecto crezca sin perder orden, trazabilidad ni claridad.
 
-La estructura actual ya contempla no solo adquisición y normalización, sino también integración IA, vistas SQL, consulta de ranking y piloto real sobre Sevilla, dejando el repositorio preparado para avanzar hacia dashboard, API y mejora IA posterior.
+El estado actual contempla adquisición, normalización, integración IA, vistas SQL, consulta de ranking, dashboards y una fase IA v2 finalizada para entrega académica.

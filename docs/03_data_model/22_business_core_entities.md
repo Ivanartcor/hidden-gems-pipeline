@@ -1,6 +1,3 @@
-# docs/03_data_model/22_business_core_entities.md
-
-````md
 # 22. Catálogo de entidades: núcleo de negocio
 
 ## 1. Introducción
@@ -503,7 +500,7 @@ También puede alimentar, mediante procesos posteriores:
 
 ### 7.2. Vertical Google Places
 
-La vertical de Google Places alimentará principalmente:
+La vertical de Google Places alimenta principalmente:
 
 * `place`
 * `place_source_ref`
@@ -517,6 +514,40 @@ La vertical de Yelp servirá como apoyo para:
 * `review`
 * pruebas de procesamiento textual
 * validación de estrategias NLP
+* entrenamiento y evaluación de modelos IA cuando se usa como corpus externo
+
+---
+
+## 8. Estado actual y relación con Sevilla IA v2
+
+El núcleo de negocio ya no se utiliza solo como preparación para NLP futuro. En el estado final de entrega, `place`, `place_source_ref` y `review` han servido como base real para:
+
+- consolidar locales procedentes de OSM y Google Places;
+- vincular reviews de Google Places a locales canónicos;
+- cargar/prototipar datos Yelp como corpus externo;
+- exportar reviews operativas de Sevilla para IA;
+- generar menciones de platos, sentimientos, señales y rankings;
+- alimentar el dashboard Sevilla IA v2.
+
+En la fase Sevilla IA v2, las entidades del núcleo cumplen este papel:
+
+| Entidad | Papel en IA v2 |
+|---|---|
+| `place` | Eje de agregación local-plato y candidato Hidden Gem |
+| `place_source_ref` | Puente entre Google Places/Yelp/OSM y el local canónico |
+| `review` | Texto fuente para NER, normalización, ABSA y evidencia de ranking |
+
+Resultados conectados al núcleo en la fase v2:
+
+| Métrica | Valor |
+|---|---:|
+| Señales place-dish v2 | 2.335 |
+| Candidatos seleccionados v2 | 268 |
+| Locales seleccionados v2 | 198 |
+| Reviews seleccionadas v2 | 627 |
+| Menciones seleccionadas v2 | 651 |
+
+La decisión de no guardar resultados IA directamente dentro de `place` o `review` se mantiene correcta: la IA v2 se genera en artefactos derivados y puede recargarse/recalcularse sin alterar el core.
 
 ---
 
