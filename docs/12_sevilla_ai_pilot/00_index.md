@@ -1,5 +1,6 @@
 # 00. Sevilla AI Pilot — Índice y visión general
 
+
 ## 1. Propósito del bloque
 
 Este bloque documenta el **piloto IA Sevilla** de Hidden Gems, es decir, la primera versión end-to-end que utiliza datos reales de Google Places para detectar platos mencionados en reseñas, normalizarlos, estimar sentimiento por mención, construir señales por local-plato y generar un ranking piloto de platos destacados.
@@ -75,15 +76,18 @@ Este bloque se organiza en los siguientes documentos:
 └── 05_limitations_and_next_steps.md
 ```
 
-Los documentos incluidos en esta primera entrega son:
+Los documentos incluidos en este bloque son:
 
 | Documento | Contenido |
 |---|---|
 | `00_index.md` | Índice general, estado del piloto y visión global |
 | `01_google_places_data_collection.md` | Recolección de datos desde Google Places y exportación para IA |
 | `02_ai_notebook_pipeline.md` | Flujo completo de notebooks IA Sevilla, artefactos y resultados |
+| `03_database_loading_and_validation.md` | Carga de artefactos IA Sevilla en PostgreSQL y validación |
+| `04_query_demo_and_results.md` | Consultas demo y resultados del ranking piloto |
+| `05_limitations_and_next_steps.md` | Limitaciones, cautelas y evolución posterior |
 
-Los documentos pendientes documentarán la carga en base de datos, las consultas demo y las limitaciones del piloto.
+El bloque queda completo como documentación del piloto Sevilla IA v1.
 
 ## 5. Flujo general del piloto
 
@@ -194,3 +198,34 @@ Sin embargo, todavía requiere:
 - ajuste de pesos del ranking;
 - posible ampliación de fuentes de reseñas;
 - futura exposición mediante API o dashboard.
+---
+
+## 10. Relación con Sevilla IA v2
+
+Tras este piloto se desarrolló una fase posterior documentada en:
+
+```text
+docs/13_sevilla_ai_v2/
+```
+
+La relación correcta entre ambos bloques es:
+
+| Bloque | Papel |
+|---|---|
+| `docs/12_sevilla_ai_pilot/` | Documenta el primer piloto local v1, basado en reglas/híbrido, cargado en PostgreSQL y consultable mediante scripts demo. |
+| `docs/13_sevilla_ai_v2/` | Documenta la evolución asistida por modelos: NER BETO, reranker de normalización, ABSA, ranking v2, comparación v1/v2 y dashboard Streamlit. |
+
+El piloto v1 no queda invalidado por v2. Sigue siendo importante porque:
+
+- fue la primera prueba end-to-end con datos reales de Sevilla;
+- dejó validada la estructura de integración en PostgreSQL;
+- sirvió como baseline para comparar la evolución v2;
+- permitió medir la mejora posterior en cobertura de locales, barrios y candidatos;
+- sigue siendo útil para explicar cómo se pasó de reglas híbridas a modelos entrenados.
+
+Lectura recomendada:
+
+```text
+12_sevilla_ai_pilot = baseline local v1
+13_sevilla_ai_v2 = evolución experimental asistida por modelos
+```

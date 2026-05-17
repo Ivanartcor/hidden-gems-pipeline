@@ -17,6 +17,11 @@ reviews gastronómicas
 
 La documentación está pensada para complementar el `README.md` principal del repositorio y explicar con detalle qué se ha construido, qué artefactos genera cada fase, qué resultados se han obtenido y qué limitaciones existen.
 
+> **Nota de actualización del repositorio**  
+> Este bloque `docs/10_ai_module/` debe leerse como la documentación técnica completa de la **IA v1 basada en Yelp**. La lógica aquí descrita sigue siendo importante porque valida la cadena NLP central: detección de platos, normalización, sentimiento por mención, agregación y ranking.  
+>  
+> El repositorio contiene una capa posterior de Sevilla / IA v2, esa capa debe interpretarse como evolución e integración territorial de esta base, no como sustitución de este bloque. Por eso se conservan los resultados Yelp v1 y se matizan las frases que antes podían sonar como estado final absoluto del proyecto.
+
 ---
 
 ## Estructura de documentos
@@ -131,15 +136,16 @@ Incluye las principales métricas del NER, inferencia, normalización, sentimien
 
 ### `09_limitations_and_future_work.md`
 
-Describe limitaciones y trabajo futuro.
+Describe limitaciones y trabajo futuro del módulo IA v1, además de la transición hacia la integración territorial posterior.
 
 Incluye:
 
-- uso actual de Yelp en inglés;
-- ausencia todavía de barrios de Sevilla en el ranking IA;
+- uso de Yelp en inglés como base experimental de IA v1;
+- ausencia de barrios de Sevilla dentro del ranking Yelp v1;
+- relación con la evolución posterior hacia Sevilla / IA v2;
 - sentimiento weak-supervised;
 - necesidad de validación humana;
-- futura adaptación a español;
+- futura adaptación robusta a español;
 - futuro modelo ABSA;
 - futuro learning-to-rank.
 
@@ -166,7 +172,9 @@ La primera versión funcional de la cadena IA ya está completada hasta ranking:
 11 → ranking Hidden Gems v1
 ```
 
-El ranking v1 es todavía un **prototipo basado en Yelp**, no el ranking final por barrios de Sevilla. Sin embargo, valida la lógica central del sistema y demuestra que el flujo IA completo es viable.
+El ranking v1 descrito en esta carpeta es un **prototipo basado en Yelp** y no debe confundirse con la evolución territorial posterior del proyecto. Su papel dentro del repositorio es servir como base técnica y experimental de la lógica IA.
+
+La evolución hacia datos reales de Sevilla, asignación por barrios, integración geográfica y posibles salidas de Sevilla IA v2 debe documentarse en la capa correspondiente del repositorio. Este bloque mantiene valor propio porque conserva la trazabilidad completa de cómo se validó la cadena IA original.
 
 ---
 

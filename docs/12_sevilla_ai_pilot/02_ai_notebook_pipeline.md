@@ -1,5 +1,6 @@
 # 02. Pipeline de notebooks IA del piloto Sevilla
 
+
 ## 1. Objetivo
 
 Este documento describe el flujo de notebooks ejecutado para transformar las reseñas reales de Google Places Sevilla en un ranking piloto de Hidden Gems.
@@ -611,3 +612,41 @@ Carga y validación en PostgreSQL
 ```
 
 Esa fase se documenta en `03_database_loading_and_validation.md`.
+---
+
+## 12. Relación con Sevilla IA v2
+
+El pipeline descrito en este documento corresponde a la versión híbrida inicial:
+
+```text
+notebooks 12–17
+→ sevilla_pilot
+→ 150 candidatos seleccionados
+```
+
+Después se construyó una fase posterior documentada en:
+
+```text
+docs/13_sevilla_ai_v2/
+```
+
+Esa fase no borra el valor del pipeline v1, sino que lo utiliza como baseline y punto de comparación.
+
+Comparación conceptual:
+
+| Aspecto | Sevilla pilot v1 | Sevilla IA v2 |
+|---|---|---|
+| Detección de platos | Reglas, lexicón y patrones híbridos | Hybrid + NER entrenado |
+| Normalización | Catálogo local y reglas controladas | Reranker BETO / entity linking |
+| Sentimiento | Híbrido con contexto local y fallback | Modelo ABSA BETO por mención |
+| Ranking | `sevilla_pilot` | `sevilla_hidden_gems_ranking_v2` |
+| Seleccionados | 150 | 268 |
+| Explotación | PostgreSQL + query demo | Dashboard Streamlit v2 |
+| Papel | Baseline local v1 | Evolución experimental con modelos |
+
+El bloque v1 sigue siendo necesario para explicar:
+
+- cómo se generó la primera señal local;
+- qué artefactos sirvieron como baseline;
+- por qué era necesario evolucionar hacia modelos entrenados;
+- cómo comparar de forma justa v1 contra v2.

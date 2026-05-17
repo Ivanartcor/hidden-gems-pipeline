@@ -26,6 +26,19 @@ reviews gastronómicas
 
 ---
 
+## Alcance de los resultados
+
+Los resultados de este documento corresponden a la **IA v1 validada sobre Yelp**.
+
+Su función es demostrar que la cadena NLP y el ranking explicable funcionan de extremo a extremo. No deben mezclarse con posibles resultados posteriores de Sevilla / IA v2, que pertenecen a otra capa documental del repositorio.
+
+Esta separación evita dos problemas:
+
+- presentar los resultados Yelp como si fueran recomendaciones reales de Sevilla;
+- borrar la trazabilidad técnica de la primera cadena IA completa.
+
+---
+
 ## 2. Resumen ejecutivo de resultados
 
 La cadena IA se completó correctamente hasta ranking v1.
@@ -465,14 +478,14 @@ Se validó mediante:
 - El scoring preliminar filtra gran parte de los pares poco fiables.
 - El ranking final produce una lista razonable, explicable y conservadora.
 
-### 11.2. Lo que todavía debe mejorarse
+### 11.2. Lo que todavía debe mejorarse o queda fuera de IA v1
 
 - La normalización no está revisada manualmente.
 - El sentimiento por mención no es un gold standard.
 - Las etiquetas de sentimiento son weak-supervised.
-- El ranking no tiene validación humana.
-- Los datos proceden de Yelp en inglés.
-- No hay todavía integración con barrios de Sevilla.
+- El ranking v1 no tiene validación humana.
+- Los datos de esta fase proceden de Yelp en inglés.
+- La integración con barrios de Sevilla no forma parte de estos resultados v1 y debe documentarse en la capa territorial posterior.
 - Los pesos del ranking son heurísticos.
 
 ---
@@ -491,9 +504,9 @@ Este prototipo demuestra que Hidden Gems puede pasar de reseñas no estructurada
 
 ---
 
-## 13. Próximo paso recomendado
+## 13. Evolución posterior recomendada
 
-El siguiente paso no debería ser añadir más complejidad al ranking Yelp, sino conectar esta lógica con el pipeline real de Hidden Gems:
+Una vez validada la lógica IA v1 sobre Yelp, la evolución correcta no es añadir complejidad indefinidamente al prototipo Yelp, sino conectar esta lógica con el pipeline real de Hidden Gems:
 
 ```text
 Google Places + OSM + barrios de Sevilla
@@ -504,10 +517,12 @@ Google Places + OSM + barrios de Sevilla
 → ranking por barrio
 ```
 
+Si el repositorio ya contiene una capa Sevilla / IA v2, este documento debe quedar como validación de la base experimental previa. La capa posterior debe encargarse de explicar qué parte de esta lógica se reutiliza, qué entradas reales se incorporan y qué artefactos nuevos se generan.
+
 En paralelo, se puede preparar una fase futura de mejora IA:
 
 - modelo ABSA entrenado;
 - normalización por embeddings;
-- adaptación al español;
+- adaptación robusta al español;
 - validación humana;
 - learning-to-rank.

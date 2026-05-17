@@ -1,5 +1,6 @@
 # 01. Recolección de datos Google Places para el piloto Sevilla
 
+
 ## 1. Objetivo
 
 El objetivo de esta fase fue construir un corpus real de locales y reseñas de Sevilla utilizando Google Places como fuente operativa principal.
@@ -315,3 +316,32 @@ data/artifacts/ai/sevilla/reviews_for_ai_google_places.jsonl
 ```
 
 Este archivo se convirtió en la base de los notebooks 12–17 del piloto IA Sevilla.
+---
+
+## 12. Relación con la fase Sevilla IA v2
+
+La recolección de Google Places documentada aquí no queda obsoleta con la fase v2.
+
+Esta capa sigue siendo la base de datos real sobre la que se construyeron las fases posteriores:
+
+```text
+Google Places Sevilla
+→ reviews reales
+→ export JSONL IA
+→ piloto Sevilla v1
+→ evolución Sevilla IA v2
+```
+
+La diferencia es que:
+
+| Fase | Uso del corpus |
+|---|---|
+| Sevilla pilot v1 | Usa el corpus para detección híbrida, normalización reglada, sentimiento híbrido y ranking piloto. |
+| Sevilla IA v2 | Usa la base local y artefactos derivados para aplicar modelos entrenados, normalización reranker, ABSA, ranking v2 y dashboard. |
+
+Por tanto, este documento debe mantenerse como referencia de:
+
+- cómo se obtuvo el corpus local;
+- qué volumen inicial había;
+- qué contrato JSONL se generó;
+- qué garantías tenía la entrada real usada por las fases IA.

@@ -10,6 +10,9 @@ Hidden Gems incluye un módulo de IA diseñado para transformar reseñas gastron
 
 El objetivo no es recomendar restaurantes de forma genérica, sino identificar **qué platos concretos destacan en qué locales**.
 
+> **Alcance de esta sección**  
+> Esta sección resume la IA v1 basada en Yelp. Sirve para explicar la cadena técnica completa y sus resultados principales. Si el README principal también incluye una capa posterior de Sevilla / IA v2, ambas partes deben convivir: la IA v1 explica la validación NLP original y la capa Sevilla explica la integración territorial final.
+
 La cadena IA desarrollada sigue este flujo:
 
 ```text
@@ -21,7 +24,7 @@ reviews gastronómicas
 → ranking Hidden Gems
 ```
 
-### Estado actual
+### Estado actual de IA v1
 
 La primera versión funcional del módulo IA ya está completada hasta ranking prototipo:
 
@@ -119,15 +122,18 @@ hidden_gems_ranking_summary_v1.json
 
 ### Nota importante
 
-El ranking actual es todavía un **prototipo basado en Yelp**.
+El ranking descrito en esta sección es un **prototipo basado en Yelp**.
 
-No representa aún el ranking final por barrios de Sevilla. Su objetivo es validar la lógica IA central del sistema.
+No debe presentarse como ranking gastronómico final de Sevilla. Su objetivo es validar la lógica IA central del sistema: detectar platos, normalizarlos, estimar sentimiento, agregar señales y construir un ranking explicable.
 
-La versión final deberá incorporar:
+La evolución territorial del proyecto debe incorporar o documentar:
 
 - Google Places;
 - OSM / Overpass;
 - dataset oficial de barrios/distritos de Sevilla;
 - asignación geográfica con PostGIS;
 - datos reales o textos disponibles de locales sevillanos;
-- validación humana.
+- validación humana;
+- artefactos finales de Sevilla / IA v2, si existen en el repositorio.
+
+En el README principal, esta sección puede convivir con una sección posterior de Sevilla IA v2. La primera explica el prototipo IA; la segunda debe explicar la integración final sobre el contexto real del proyecto.

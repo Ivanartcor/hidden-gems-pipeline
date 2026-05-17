@@ -1,3 +1,6 @@
+# Nota de actualización
+
+
 # 03 - AI Query Layer
 
 ## Objetivo
@@ -18,6 +21,15 @@ La implementación SQL principal está en:
 ```text
 db/ddl/08_ai_views.sql
 ```
+
+Para Sevilla IA v2 existe además una capa de consulta basada en artefactos exportados para dashboard:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+dashboard/streamlit_sevilla_v2_app.py
+```
+
+Esta segunda capa no reemplaza a las vistas SQL. Actúa como capa de explotación visual del ranking v2 y consume CSV/JSON exportados.
 
 ---
 
@@ -273,7 +285,90 @@ python -m scripts.query_sevilla_hidden_gems_demo `
 
 ---
 
-## 6. Outputs del script Sevilla demo
+## 6. Capa de consulta Sevilla IA v2
+
+La fase Sevilla IA v2 añade una capa de consulta orientada a dashboard.
+
+No depende directamente de las vistas SQL anteriores, sino de un export limpio generado desde los artefactos v2.
+
+Script productor:
+
+```text
+scripts/export_sevilla_dashboard_data_v2.py
+```
+
+Dashboard:
+
+```text
+dashboard/streamlit_sevilla_v2_app.py
+```
+
+Carpeta consumida:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Archivos principales:
+
+```text
+ranking_detail.csv
+selected_candidates.csv
+top_global.csv
+top_by_district.csv
+top_by_neighborhood.csv
+top_by_dish.csv
+district_summary.csv
+neighborhood_summary.csv
+dish_summary.csv
+place_summary.csv
+tier_summary.csv
+evidence_summary.csv
+quality_summary.csv
+mention_examples.csv
+place_coordinates.csv
+comparison/
+data_contract.json
+dashboard_metadata.json
+dashboard_export_summary.json
+```
+
+Granularidades principales:
+
+| Archivo | Granularidad |
+|---|---|
+| `ranking_detail.csv` | Un candidato/señal place-dish puntuado. |
+| `selected_candidates.csv` | Un candidato seleccionado como Hidden Gem v2. |
+| `mention_examples.csv` | Una mención/reseña asociada a un candidato seleccionado. |
+| `district_summary.csv` | Un distrito. |
+| `neighborhood_summary.csv` | Un barrio. |
+| `dish_summary.csv` | Un plato. |
+| `place_summary.csv` | Un local. |
+
+El dashboard permite consultar:
+
+```text
+- ranking global v2;
+- filtros por distrito, barrio, plato, local, tier, evidencia y calidad;
+- mapa territorial;
+- análisis de platos y locales;
+- evidencia y calidad;
+- comparación v1 vs v2;
+- menciones y reseñas justificativas;
+- explicación del score.
+```
+
+Estado:
+
+```text
+ranking_type = experimental model-assisted
+selected_candidates = 268
+production_ready_count_v2 = 0
+```
+
+---
+
+# 7. Outputs del script Sevilla demo
 
 El script genera:
 
@@ -294,7 +389,7 @@ Estos ficheros son candidatos naturales para alimentar el dashboard inicial.
 
 ---
 
-## 7. Resultados de consulta Sevilla pilot
+## 8. Resultados de consulta Sevilla pilot
 
 La consulta demo validó que el ranking es explotable por:
 
@@ -327,7 +422,7 @@ ready_for_sevilla_pilot_queries = true
 
 ---
 
-## 8. Consultas SQL útiles
+## 9. Consultas SQL útiles
 
 ### Top candidatos genérico
 
@@ -405,7 +500,7 @@ LIMIT 25;
 
 ---
 
-## 9. Estado de la capa de consulta
+## 10. Estado de la capa de consulta
 
 ```text
 [OK] 08_ai_views.sql cargado en PostgreSQL
@@ -417,9 +512,15 @@ LIMIT 25;
 
 ---
 
-## 10. Próxima evolución de la query layer
+## 11. Próxima evolución de la query layer
 
-Antes del dashboard conviene consolidar el contrato de datos:
+El contrato de datos del dashboard v2 ya está definido mediante:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/data_contract.json
+```
+
+y se apoya en estos bloques:
 
 ```text
 Top global
@@ -430,14 +531,18 @@ Detalle de candidato
 Resumen por local
 Resumen por plato
 Menciones justificativas
+Comparación v1/v2
+Evidencia y calidad
+Coordenadas
 ```
 
 Opciones de consumo:
 
 ```text
-1. CSV/JSON exportados por query_sevilla_hidden_gems_demo.py
-2. Consulta directa a PostgreSQL desde Streamlit
-3. API intermedia con FastAPI en una fase posterior
+1. CSV/JSON exportados por query_sevilla_hidden_gems_demo.py para Sevilla pilot v1.
+2. CSV/JSON exportados por export_sevilla_dashboard_data_v2.py para Sevilla IA v2.
+3. Consulta directa a PostgreSQL desde Streamlit si se carga v2 en DB.
+4. API intermedia con FastAPI en una fase posterior.
 ```
 
-Para el dashboard piloto, la opción más rápida es usar CSV/JSON exportados por el script demo. Para una versión más cercana a producto, la opción posterior sería API o conexión directa a PostgreSQL.
+Para el dashboard v2, la opción documentada y validada es usar los CSV/JSON de `dashboard_v2/`. Para una versión más cercana a producto, la opción posterior sería API o conexión directa a PostgreSQL.

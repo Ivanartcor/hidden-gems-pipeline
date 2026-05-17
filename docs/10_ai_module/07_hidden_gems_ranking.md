@@ -30,6 +30,20 @@ El resultado es una lista priorizada de combinaciones **negocio + plato** que po
 
 ---
 
+## Alcance de este documento
+
+Este archivo documenta el **ranking Hidden Gems v1 basado en Yelp**.
+
+Debe conservarse porque contiene la lógica de scoring, los componentes, las penalizaciones, los criterios de selección y la explicación del ranking inicial. Aunque el repositorio evolucione hacia Sevilla, barrios y salidas territoriales, este documento sigue siendo la referencia técnica de la fórmula v1.
+
+Cuando se hable de ciudad/estado, debe entenderse como dimensión disponible en el prototipo Yelp. En la evolución posterior de Hidden Gems, esa dimensión se sustituye o complementa por:
+
+```text
+local + plato + barrio + distrito
+```
+
+---
+
 ## 2. Papel dentro del flujo de IA
 
 El ranking es el último paso de la cadena IA actual:
@@ -554,45 +568,48 @@ Sin embargo, los candidatos todavía necesitan revisión humana y adaptación al
 
 ---
 
-## 19. Relación con la versión final de Hidden Gems
+## 19. Relación con la evolución Sevilla / IA v2
 
-En la versión final, el ranking deberá pasar de:
+El ranking v1 trabaja con la estructura disponible en Yelp:
 
 ```text
 plato + negocio + ciudad/estado
 ```
 
-a:
+La evolución natural del proyecto consiste en proyectar esta lógica hacia el objetivo real de Hidden Gems:
 
 ```text
 plato + local + barrio + distrito
 ```
 
-Para ello será necesario conectar este módulo con:
+Para ello, esta fórmula de ranking debe conectarse con:
 
 - Google Places;
 - OSM / Overpass;
 - dataset oficial de barrios/distritos de Sevilla;
 - geocodificación y asignación espacial;
-- posible corpus de reseñas o textos en español.
+- posible corpus de reseñas, snippets o textos disponibles en español;
+- entidades persistentes de IA dentro del modelo de datos.
 
-La lógica de scoring ya está preparada para reutilizarse, pero las dimensiones territoriales cambiarán.
+La lógica de scoring de este documento sigue siendo reutilizable, pero las dimensiones territoriales y las fuentes de entrada cambian en la capa posterior.
 
 ---
 
 ## 20. Limitaciones del ranking v1
 
-Limitaciones actuales:
+Limitaciones actuales de la versión v1 documentada aquí:
 
 - se basa en Yelp, no en datos reales de Sevilla;
-- no incorpora barrios ni distritos;
+- no incorpora barrios ni distritos dentro de este ranking v1;
 - el sentimiento por mención es weak-supervised;
 - la normalización de platos no está revisada manualmente;
 - el ranking no ha sido validado por usuarios;
 - los pesos del score son heurísticos;
-- no existe todavía learning-to-rank;
+- no existe todavía learning-to-rank en esta fase;
 - algunos platos genéricos siguen apareciendo en posiciones altas;
 - los resultados son candidatos, no recomendaciones definitivas.
+
+Estas limitaciones deben interpretarse como límites del prototipo Yelp v1. La capa Sevilla / IA v2 puede reutilizar este diseño y resolver parte de la integración territorial sin borrar el valor técnico de este ranking.
 
 ---
 
@@ -613,4 +630,4 @@ texto no estructurado
 → ranking explicable
 ```
 
-La siguiente fase natural será documentar los resultados globales y conectar la lógica con datos reales de Sevilla.
+La evolución posterior consiste en conectar esta lógica con datos reales de Sevilla, asignación geográfica y rankings por barrio/distrito, manteniendo la trazabilidad de la fórmula v1.

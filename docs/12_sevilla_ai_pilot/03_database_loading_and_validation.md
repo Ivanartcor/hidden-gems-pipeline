@@ -328,3 +328,54 @@ ready_for_sevilla_pilot_queries = true
 ```
 
 Por tanto, la siguiente fase natural es usar las vistas IA para consulta, demo, revisión y futura exposición mediante API o dashboard.
+---
+
+## 16. Relación con Sevilla IA v2
+
+La carga descrita en este documento corresponde al piloto v1:
+
+```text
+sevilla_pilot
+→ PostgreSQL
+→ vistas IA
+→ query demo
+```
+
+La fase posterior `docs/13_sevilla_ai_v2/` genera una cadena más avanzada de artefactos:
+
+```text
+hybrid_ner_v2/
+normalization_reranker_v1/
+sentiment_absa_v1/
+place_dish_signals_v2/
+ranking_v2/
+ranking_v2_comparison/
+dashboard_v2/
+```
+
+En el estado documentado aquí, no debe asumirse automáticamente que el ranking v2 está cargado en las mismas tablas PostgreSQL. Para integrarlo en base de datos habría que crear una extensión explícita, por ejemplo:
+
+```text
+load_sevilla_ai_v2_outputs.py
+check_sevilla_ai_v2_loaded.py
+query_sevilla_hidden_gems_v2_demo.py
+```
+
+o adaptar los loaders existentes con un nuevo `ranking_scope` / `artifact_ranking_scope` específico.
+
+Decisión documental actual:
+
+```text
+PostgreSQL validado = Sevilla pilot v1
+Artefactos/dashboard v2 = documentados en docs/13_sevilla_ai_v2
+```
+
+Esto evita mezclar conteos y estados de madurez:
+
+| Elemento | Sevilla pilot v1 | Sevilla IA v2 |
+|---|---:|---:|
+| Candidatos seleccionados | 150 | 268 |
+| Locales seleccionados | 122 | 198 |
+| Barrios seleccionados | 55 | 67 |
+| Estado DB | Cargado y validado | No documentado aquí como cargado en PostgreSQL |
+| Producción | No | No |

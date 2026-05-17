@@ -1,5 +1,6 @@
 # 05. Limitaciones y próximos pasos del piloto Sevilla IA
 
+
 ## 1. Objetivo
 
 Este documento recoge las principales limitaciones del piloto IA Sevilla y propone los siguientes pasos para evolucionarlo desde un prototipo validado hacia una versión más robusta, consultable y eventualmente productiva.
@@ -548,4 +549,108 @@ sevilla_pilot
 is_production_ready = false
 ```
 
-La siguiente evolución natural es convertir este prototipo en una capa consultable mediante vistas específicas, API o dashboard, y después reforzar la calidad con revisión manual, mejores fuentes y modelos IA más específicos para español gastronómico.
+La evolución natural descrita en este cierre se materializa parcialmente en la fase posterior `docs/13_sevilla_ai_v2/`, donde se incorporan modelos entrenados, ranking v2, comparación v1/v2 y dashboard Streamlit.
+
+A partir de ahí, el siguiente salto ya no es solo demostrar el prototipo, sino reforzar su fiabilidad con validación humana, más datos, criterios de producción e integración operativa si el proyecto avanza hacia API o producto.
+---
+
+## 12. Actualización tras la fase Sevilla IA v2
+
+Después de este piloto se desarrolló la fase:
+
+```text
+docs/13_sevilla_ai_v2/
+```
+
+Esa fase aborda varias de las mejoras planteadas aquí.
+
+| Necesidad detectada en piloto v1 | Estado tras Sevilla IA v2 |
+|---|---|
+| Entrenar o adaptar un modelo NER español | Abordado mediante NER BETO para detección de menciones de platos. |
+| Mejorar normalización más allá de reglas | Abordado mediante reranker BETO / entity linking. |
+| Mejorar sentimiento por mención | Abordado mediante modelo ABSA BETO. |
+| Comparar contra el ranking piloto | Abordado con comparación formal v1 vs v2. |
+| Crear dashboard inicial | Abordado con dashboard Streamlit Sevilla IA v2. |
+| Revisar evidencia y calidad | Abordado parcialmente con `evidence_tier`, `quality_tier`, menciones y reseñas visibles en dashboard. |
+| Mantener estado no productivo | Se mantiene: v2 también es experimental y `production_ready = false`. |
+
+La lectura actualizada del roadmap es:
+
+```text
+Piloto v1
+→ validó el flujo local con reglas híbridas y PostgreSQL
+
+Sevilla IA v2
+→ mejoró la cadena con modelos entrenados, ranking ampliado y dashboard
+
+Siguientes mejoras reales
+→ validación humana, más datos, calibración de producción, integración DB/API si procede
+```
+
+---
+
+## 13. Próximos pasos que siguen vigentes tras v2
+
+Aunque v2 mejora mucho el piloto, siguen pendientes o abiertos estos puntos:
+
+### 13.1. Validación humana sistemática
+
+Sigue siendo necesario revisar manualmente:
+
+- top candidatos v2;
+- candidatos `v2_only`;
+- candidatos con evidencia `emerging`;
+- platos genéricos en posiciones altas;
+- menciones con baja confianza;
+- casos de sentimiento dudoso.
+
+### 13.2. Criterios de producción
+
+Tanto v1 como v2 siguen marcados como no productivos.
+
+Antes de producción habría que definir criterios como:
+
+```text
+mínimo de reviews
+mínimo de menciones
+evidence_tier mínimo
+quality_tier mínimo
+validación humana mínima
+precisión aceptable de NER/normalización/ABSA
+política de actualización
+```
+
+### 13.3. Integración operativa
+
+La fase v2 genera artefactos y dashboard, pero una versión de producto podría requerir:
+
+```text
+loader PostgreSQL específico para v2
+vistas SQL v2
+API FastAPI
+frontend
+pipeline incremental
+monitorización de calidad
+```
+
+### 13.4. Más datos y más fuentes
+
+La limitación de reseñas por local sigue existiendo.
+
+Por tanto, sigue siendo interesante estudiar:
+
+- más ejecuciones Google Places controladas;
+- fuentes abiertas complementarias;
+- datos propios de usuarios;
+- feedback manual;
+- enriquecimiento de menús/cartas cuando sea legal y viable.
+
+### 13.5. Calibración del ranking
+
+La comparación v1/v2 muestra mejora de cobertura, pero todavía hay que calibrar:
+
+- penalización de platos demasiado genéricos;
+- bonus de platos locales/específicos;
+- pesos de evidencia;
+- umbrales para `top`, `strong`, `promising` y `exploratory`;
+- diferencia entre ranking exploratorio y ranking productivo.

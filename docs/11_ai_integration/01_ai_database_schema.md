@@ -1,3 +1,6 @@
+# Nota de actualización
+
+
 # 01 - AI Database Schema
 
 ## Objetivo
@@ -96,6 +99,11 @@ signal_aggregation_v1
 hidden_gems_ranking_v1
 sevilla_dish_detection_hybrid_v1
 sevilla_hidden_gems_ranking_pilot_v1
+sevilla_dish_ner_beto_v1_2
+sevilla_dish_normalization_reranker_beto_v1
+sevilla_mention_sentiment_absa_beto_v1
+sevilla_place_dish_signals_v2
+sevilla_hidden_gems_ranking_v2
 ```
 
 ---
@@ -120,6 +128,12 @@ ai_run_yelp_mention_sentiment_hybrid_v1
 ai_run_yelp_hidden_gems_ranking_v1
 ai_run_sevilla_dish_detection_v1
 ai_run_sevilla_hidden_gems_ranking_pilot_v1
+ai_run_sevilla_hybrid_ner_candidates_v2
+ai_run_sevilla_normalization_reranker_v1
+ai_run_sevilla_sentiment_absa_v1
+ai_run_sevilla_place_dish_signals_v2
+ai_run_sevilla_hidden_gems_ranking_v2
+ai_run_sevilla_dashboard_export_v2
 ```
 
 Los campos `input_artifacts_json`, `output_artifacts_json`, `config_json` y `metrics_json` permiten reconstruir qué se ejecutó y con qué resultados.
@@ -305,6 +319,26 @@ is_production_ready = false
 
 El uso de `other` para Sevilla se debe a la constraint actual del DDL. El valor lógico `sevilla_pilot` se conserva en `ranking_config_json`.
 
+
+```text
+Sevilla IA v2:
+ranking_scope lógico = sevilla_ai_v2
+artifact family = model_inference/ranking_v2
+dashboard family = dashboard_v2
+is_production_ready = false
+```
+
+En la fase v2, el ranking principal se explota desde artefactos CSV/JSONL y dashboard. Si se decide cargar v2 en PostgreSQL, la tabla `hidden_gem_candidate` puede reutilizarse manteniendo los componentes específicos de v2 en campos JSON como `score_components_json`, `ranking_config_json` o `quality_flags_json`.
+
+Para evitar depender de `ranking_scope = other`, se recomienda una migración futura que añada valores nativos como:
+
+```text
+sevilla_pilot
+sevilla_ai_v2
+```
+
+o que sustituya el enum/check rígido por una tabla catálogo de scopes versionados.
+
 ---
 
 ## Relaciones principales
@@ -440,3 +474,47 @@ ranking inconsistente
 9. Yelp queda como prototipo.
 10. Sevilla queda como piloto local, no producción.
 11. La capa queda preparada para añadir `sevilla_pilot` como scope nativo en una futura migración.
+12. La fase Sevilla IA v2 puede mapearse al mismo modelo físico, pero actualmente debe distinguirse del piloto porque usa NER BETO, reranker de normalización, ABSA y scoring v2.
+13. Los campos específicos de v2 deben conservarse en JSON o en columnas auxiliares antes de decidir una ampliación física del DDL.
+14. `production_ready = false` sigue siendo obligatorio para v2 hasta que exista validación humana y criterios productivos.
+
+
+---
+
+# 9. Compatibilidad del schema con Sevilla IA v2
+
+La fase Sevilla IA v2 introduce más señales que el piloto v1:
+
+```text
+source_strategy_v2
+normalization_confidence_v1
+normalization_status_v1
+absa_sentiment_label_v1
+absa_confidence_v1
+weighted_sentiment_score_v2
+evidence_tier_v2
+aggregate_quality_tier_v2
+hidden_gem_score_v2
+quality_tier_v2
+production_ready_count_v2
+```
+
+No todas requieren columnas nuevas obligatorias. La estrategia recomendada es:
+
+1. mantener las tablas IA actuales como núcleo estable;
+2. guardar métricas y componentes específicos de v2 en JSON;
+3. crear vistas específicas `vw_ai_hidden_gems_sevilla_v2_*` si se carga en DB;
+4. mantener los artefactos `dashboard_v2` como contrato de explotación visual;
+5. añadir migraciones solo cuando se consolide qué columnas serán estables.
+
+## Riesgo a vigilar
+
+La documentación del schema no debe dar a entender que el ranking v2 ya está necesariamente cargado en PostgreSQL si solo se dispone de los artefactos `model_inference/` y `dashboard_v2/`.
+
+Por tanto, el estado correcto queda así:
+
+```text
+Yelp prototype → cargado y consultable en PostgreSQL
+Sevilla pilot v1 → cargado y consultable en PostgreSQL
+Sevilla IA v2 → generado como artefactos + dashboard; candidato a integración PostgreSQL posterior
+```

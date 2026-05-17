@@ -18,6 +18,24 @@ Dentro de ese pipeline, el módulo IA actúa sobre datos textuales de reseñas y
 
 ---
 
+## Alcance de este documento
+
+Este documento describe la **versión IA v1** construida y validada sobre Yelp.
+
+Es importante separar dos niveles:
+
+```text
+IA v1 / Yelp
+→ validación técnica de la cadena NLP y del ranking explicable
+
+Sevilla / IA v2
+→ evolución posterior orientada a locales reales, barrios, distritos y explotación territorial
+```
+
+Por tanto, cuando este documento hable de limitaciones como “no incluye barrios de Sevilla” o “no está adaptado todavía al español”, se refiere al alcance directo de la IA v1 documentada aquí. No debe leerse como una negación de capas posteriores del repositorio, sino como una delimitación histórica y técnica de esta fase.
+
+---
+
 ## Objetivo del módulo IA
 
 El objetivo principal del módulo IA es convertir texto no estructurado en una estructura analítica útil para ranking.
@@ -306,22 +324,27 @@ fuentes externas
 → explotación analítica / producto
 ```
 
-Actualmente, la IA se ha validado con Yelp. Más adelante debe conectarse con:
+En la versión v1 documentada aquí, la IA se validó con Yelp. Esa validación permitió probar la lógica central antes de llevarla al contexto real del proyecto.
+
+La evolución posterior del repositorio debe conectar o haber conectado esta lógica con:
 
 - Google Places;
 - OSM / Overpass;
 - datos geográficos oficiales de Sevilla;
 - asignación de barrios;
-- datos reales de restaurantes de Sevilla.
+- datos reales o textos disponibles de restaurantes de Sevilla;
+- salidas territoriales orientadas a barrio/distrito.
+
+La separación es intencionada: este documento conserva la explicación técnica de la IA v1, mientras que la integración territorial debe quedar documentada en la capa posterior correspondiente.
 
 ---
 
 ## Estado actual
 
-Estado del módulo:
+Estado del módulo documentado en esta carpeta:
 
 ```text
-Completado como prototipo funcional IA v1
+Completado como prototipo funcional IA v1 y base técnica reutilizable
 ```
 
 Incluye:
@@ -335,7 +358,7 @@ Incluye:
 - artefactos exportados;
 - documentación en proceso.
 
-No incluye todavía:
+Fuera del alcance directo de esta documentación v1 quedan, o deben tratarse en capas posteriores del repositorio:
 
 - ranking por barrios de Sevilla;
 - adaptación robusta al español;
@@ -343,6 +366,8 @@ No incluye todavía:
 - modelo ABSA entrenado;
 - learning-to-rank;
 - integración final con FastAPI o frontend.
+
+Esto no invalida el módulo v1: lo delimita. Su función es demostrar que la cadena NLP y el ranking explicable son viables antes de integrarlos con la realidad geográfica de Sevilla.
 
 ---
 

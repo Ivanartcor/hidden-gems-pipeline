@@ -1,15 +1,23 @@
+# Nota de actualización
+
+
 # 04 - Current Status and Next Steps
 
 ## 1. Estado actual general
 
-La integración del módulo IA en PostgreSQL queda completada y validada en dos niveles:
+La integración del módulo IA queda completada y validada en varios niveles:
 
 ```text
 1. Yelp prototype
    Corpus externo amplio usado para validar arquitectura IA.
 
 2. Sevilla pilot
-   Primer piloto local generado desde Google Places Reviews de Sevilla.
+   Primer piloto local generado desde Google Places Reviews de Sevilla,
+   cargado en PostgreSQL y consultable mediante vistas/scripts.
+
+3. Sevilla IA v2
+   Evolución posterior con modelos entrenados, ranking v2, comparación v1/v2
+   y dashboard Streamlit basado en artefactos exportados.
 ```
 
 Esto significa que el proyecto ya no está solo en fase de preparación. Actualmente existe un flujo completo:
@@ -20,9 +28,9 @@ reviews
 → sentimiento por mención
 → señales por local/plato
 → ranking
-→ PostgreSQL
-→ vistas consultables
-→ scripts demo
+→ PostgreSQL / artefactos versionados
+→ vistas consultables / dashboard
+→ demo y revisión
 ```
 
 ---
@@ -182,7 +190,76 @@ Las Golondrinas - Pagés del Corro → bacalao
 
 ---
 
-## 5. Qué está ya cerrado
+
+## 5. Estado validado: Sevilla IA v2
+
+Fases cerradas:
+
+```text
+1. Uso del piloto Sevilla como baseline.
+2. Entrenamiento/aplicación de NER BETO para menciones de platos.
+3. Construcción de capa Hybrid + NER candidates v2.
+4. Normalización/entity linking con reranker.
+5. Sentimiento ABSA por mención.
+6. Agregación place_id + dish_id.
+7. Ranking Hidden Gems Sevilla v2.
+8. Comparación ranking v1 vs v2.
+9. Export específico para dashboard v2.
+10. Dashboard Streamlit Sevilla IA v2.
+11. Documentación docs/13_sevilla_ai_v2.
+```
+
+Resultados principales:
+
+| Métrica | Valor |
+|---|---:|
+| candidatos puntuados | 2.335 |
+| candidatos seleccionados | 268 |
+| locales seleccionados | 198 |
+| platos seleccionados | 40 |
+| barrios seleccionados | 67 |
+| distritos seleccionados | 11 |
+| menciones usadas en seleccionados | 651 |
+| reviews usadas en seleccionados | 627 |
+| score medio seleccionado | 80,58 |
+| score máximo seleccionado | 91,66 |
+| score mínimo seleccionado | 66,12 |
+
+Distribución por tier:
+
+```text
+top_hidden_gem = 16
+strong_hidden_gem = 77
+promising_hidden_gem = 139
+exploratory_hidden_gem = 36
+```
+
+Comparación con ranking Sevilla pilot v1:
+
+```text
+v1_selected_unique = 150
+v2_selected_unique = 268
+matched_candidates = 119
+v1_only_candidates = 31
+v2_only_candidates = 149
+v1_coverage_in_v2 = 79.3 %
+jaccard_overlap = 39.8 %
+incremento_locales = +76
+incremento_barrios = +12
+```
+
+Estado:
+
+```text
+ranking_type = experimental model-assisted
+production_ready_count_v2 = 0
+dashboard_ready = true
+```
+
+La fase v2 no debe presentarse como ranking de producción, sino como ranking experimental asistido por modelos.
+
+
+## 6. Qué está ya cerrado
 
 ```text
 Verticales de adquisición
@@ -207,13 +284,19 @@ Documentación
 → docs/10_ai_module
 → docs/11_ai_integration
 → docs/12_sevilla_ai_pilot
+→ docs/13_sevilla_ai_v2
+```
+
+Dashboard
+→ dashboard/streamlit_sevilla_v2_app.py
+→ data/artifacts/ai/sevilla/dashboard_v2/
 ```
 
 ---
 
-## 6. Limitaciones actuales
+## 7. Limitaciones actuales
 
-### 6.1. Sevilla pilot no es producción
+### 7.1. Sevilla pilot no es producción
 
 El piloto local es útil y consultable, pero todavía no debe publicarse como ranking final.
 
@@ -226,7 +309,7 @@ Motivos:
 - hay que evaluar falsos positivos desde una interfaz o dashboard;
 - `is_production_ready = false`.
 
-### 6.2. Restricción temporal de `ranking_scope`
+### 7.2. Restricción temporal de `ranking_scope`
 
 El DDL actual no incluye `sevilla_pilot` como valor nativo de `ranking_scope`, por lo que se ha usado:
 
@@ -237,37 +320,48 @@ artifact_ranking_scope = sevilla_pilot
 
 Esto es correcto para el piloto, pero puede revisarse en una futura migración.
 
-### 6.3. IA mejorable
+### 7.3. IA mejorable
 
-La capa IA actual es suficientemente buena para prototipo, pero no definitiva.
+La capa IA actual es suficientemente buena para prototipo avanzado, pero no definitiva.
+
+La fase v2 ya ha incorporado:
+
+- NER específico en español con BETO;
+- normalización/entity linking con reranker;
+- sentimiento por aspecto/plato mediante ABSA;
+- ranking v2;
+- dashboard específico.
 
 Posibles mejoras posteriores:
 
-- ampliar diccionario gastronómico español;
+- ampliar el catálogo gastronómico español;
 - mejorar detección de platos compuestos;
-- reducir falsos positivos;
-- entrenar NER específico español;
-- mejorar sentimiento por aspecto/plato;
-- añadir validación humana.
+- reducir falsos positivos en menciones `ner_only`;
+- aumentar ejemplos manuales de ABSA, especialmente `neutral` y `negative`;
+- revisar platos demasiado genéricos;
+- añadir validación humana sistemática;
+- definir umbrales de producción.
 
 ---
 
-## 7. Siguiente fase recomendada
+## 8. Siguiente fase recomendada
 
-El orden acordado para continuar es:
+El orden recomendado tras Sevilla IA v2 es:
 
 ```text
-1. Actualizar README y documentación general.
-2. Consolidar scripts demo finales.
-3. Definir contrato de datos para dashboard.
-4. Crear dashboard piloto.
-5. Revisar calidad del ranking con uso real.
-6. Decidir si conviene mejorar reglas o crear modelos IA nuevos.
+1. Actualizar README y documentación general para reflejar v2.
+2. Mantener v1 como baseline y v2 como ranking principal experimental.
+3. Revisar manualmente top_hidden_gem y strong_hidden_gem.
+4. Decidir si se persiste ranking v2 en PostgreSQL o se mantiene como artefacto/dashboard.
+5. Si se carga en PostgreSQL, crear loaders/checks específicos para v2.
+6. Definir una versión production_candidate con umbrales más estrictos.
+7. Ajustar penalizaciones de platos genéricos y evidencia emerging.
+8. Preparar la presentación/memoria usando dashboard v2.
 ```
 
 ---
 
-## 8. Fase A: documentación general
+## 9. Fase A: documentación general
 
 Ya se está actualizando:
 
@@ -278,21 +372,24 @@ docs/02_architecture/
 docs/03_data_model/
 docs/04_sources/
 docs/05_verticals/
+docs/10_ai_module/
 docs/11_ai_integration/
 docs/12_sevilla_ai_pilot/
+docs/13_sevilla_ai_v2/
 ```
 
 Objetivo:
 
 ```text
-Que el repositorio refleje que el piloto IA Sevilla ya existe, está cargado y es consultable.
+Que el repositorio refleje que el piloto IA Sevilla existe, está cargado y es consultable,
+y que Sevilla IA v2 existe como evolución experimental basada en modelos y dashboard.
 ```
 
 ---
 
-## 9. Fase B: scripts demo finales
+## 10. Fase B: scripts demo finales
 
-Scripts a consolidar:
+Scripts a mantener para Sevilla pilot:
 
 ```text
 scripts/query_sevilla_hidden_gems_demo.py
@@ -300,6 +397,18 @@ scripts/check_sevilla_ai_pilot_loaded.py
 scripts/load_sevilla_ai_pilot_outputs.py
 scripts/export_reviews_for_ai.py
 scripts/check_ai_review_export.py
+```
+
+Scripts a mantener para Sevilla IA v2:
+
+```text
+scripts/build_sevilla_hybrid_ner_mention_candidates_v2.py
+scripts/run_sevilla_dish_normalization_reranker_v1.py
+scripts/run_sevilla_mention_sentiment_absa_v1.py
+scripts/build_sevilla_place_dish_signals_v2.py
+scripts/build_sevilla_hidden_gems_ranking_v2.py
+scripts/compare_sevilla_ranking_v1_vs_v2.py
+scripts/export_sevilla_dashboard_data_v2.py
 ```
 
 Revisión recomendada:
@@ -313,9 +422,9 @@ Revisión recomendada:
 
 ---
 
-## 10. Fase C: contrato de datos para dashboard
+## 11. Fase C: contrato de datos para dashboard
 
-Antes del dashboard, conviene cerrar qué datos debe consumir.
+Para el dashboard piloto v1 ya existía una necesidad de contrato de datos. En v2, este contrato queda más consolidado en `dashboard_v2/data_contract.json`.
 
 Bloques mínimos:
 
@@ -330,56 +439,62 @@ Resumen por plato
 Menciones justificativas
 ```
 
-Fuente recomendada para la primera versión:
+Fuente recomendada para Sevilla pilot v1:
 
 ```text
 CSV/JSON exportados por query_sevilla_hidden_gems_demo.py
 ```
 
+Fuente recomendada para Sevilla IA v2:
+
+```text
+CSV/JSON exportados por export_sevilla_dashboard_data_v2.py
+```
+
 Fuente posterior posible:
 
 ```text
-PostgreSQL directo
+PostgreSQL directo si se carga v2
 FastAPI
 ```
 
 ---
 
-## 11. Fase D: dashboard piloto
+## 12. Fase D: dashboard piloto / dashboard v2
 
-Recomendación inicial:
+La recomendación inicial era usar Streamlit. Esa decisión ya se ha materializado en:
 
 ```text
-Streamlit
+dashboard/streamlit_sevilla_v2_app.py
 ```
 
-Motivo:
-
-- rápido de construir;
-- integrado con Python;
-- suficiente para demo técnica;
-- permite filtros, tablas, cards y gráficos;
-- puede consumir CSV/JSON o PostgreSQL.
-
-Funcionalidades mínimas:
+El dashboard v2 consume:
 
 ```text
-filtro por distrito
-filtro por barrio
-filtro por plato
-top global
-top por zona
-cards de candidatos
-tabla completa
-detalle con explicación del ranking
-resumen por distrito/plato/tier
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+Incluye:
+
+```text
+resumen ejecutivo
+ranking IA v2
+filtros por distrito/barrio/plato/local/tier/evidencia/calidad
+análisis territorial
+mapa
+platos y locales
+evidencia y calidad
+comparación v1 vs v2
+detalle de menciones y reseñas
+explicación de puntuación
+contrato de datos
 ```
 
 ---
 
-## 12. Fase E: mejora IA posterior
+## 13. Fase E: mejora IA posterior
 
-No conviene empezar entrenando nuevos modelos antes de ver el ranking en dashboard.
+Ya se han entrenado e integrado modelos para NER, normalización y ABSA. El siguiente paso no debe ser entrenar por entrenar, sino revisar el ranking v2 desde el dashboard.
 
 El dashboard ayudará a detectar:
 
@@ -390,32 +505,37 @@ locales con señal débil
 barrios con poca cobertura
 tiers mal calibrados
 problemas de sentimiento
-necesidad real de modelo entrenado
+normalizaciones dudosas
+necesidad real de dataset anotado adicional
 ```
 
 Después se podrá decidir entre:
 
 ```text
-mejorar reglas
-ampliar lexicón español
-crear dataset anotado
-entrenar NER español
-usar modelo multilingüe
-mejorar sentimiento ABSA
+ajustar reglas de ranking
+ampliar catálogo y aliases
+revisar top candidates manualmente
+crear dataset anotado adicional
+entrenar ABSA v1.1
+entrenar NER v1.3
+crear versión production_candidate con umbrales estrictos
 ```
 
 ---
 
-## 13. Conclusión
+## 14. Conclusión
 
-La integración IA ya no es solo un prototipo con Yelp: ahora incluye un piloto real de Sevilla construido sobre Google Places Reviews, cargado en PostgreSQL y consultable.
+La integración IA ya no es solo un prototipo con Yelp: incluye un piloto real de Sevilla construido sobre Google Places Reviews, cargado en PostgreSQL y consultable.
 
-El siguiente salto no debe ser añadir complejidad IA directamente, sino convertir el resultado actual en algo demostrable y revisable:
+Además, la fase Sevilla IA v2 aporta una evolución posterior basada en modelos entrenados, ranking v2, comparación con v1 y dashboard Streamlit.
+
+El siguiente salto debe ser convertir v2 en una base defendible de análisis y validación:
 
 ```text
-consultas finales
-→ contrato de datos
-→ dashboard piloto
-→ revisión de calidad
+dashboard v2
+→ revisión manual del top
+→ decisión sobre persistencia PostgreSQL de v2
+→ ajuste de calidad/evidencia
+→ posible versión production_candidate
 → mejoras IA dirigidas por evidencia
 ```

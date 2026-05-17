@@ -1,5 +1,6 @@
 # 04. Consulta demo y resultados del ranking Sevilla piloto
 
+
 ## 1. Objetivo
 
 Este documento describe cómo consultar el ranking `sevilla_pilot` ya cargado en PostgreSQL y qué resultados principales devuelve.
@@ -302,3 +303,37 @@ El sistema ya permite consultar Hidden Gems por:
 - tier de calidad.
 
 Esto deja el proyecto preparado para la siguiente fase: documentación final, revisión manual ampliada, ajustes de scoring y futura exposición mediante API o dashboard.
+---
+
+## 15. Relación con el dashboard Sevilla IA v2
+
+La consulta demo descrita aquí corresponde al piloto v1 cargado en PostgreSQL:
+
+```text
+query_sevilla_hidden_gems_demo.py
+→ sevilla_pilot
+→ CSV/JSON de demo
+```
+
+Posteriormente se desarrolló una capa de explotación más avanzada para IA v2:
+
+```text
+dashboard/streamlit_sevilla_v2_app.py
+```
+
+con datos exportados en:
+
+```text
+data/artifacts/ai/sevilla/dashboard_v2/
+```
+
+La diferencia de uso es:
+
+| Capa | Función |
+|---|---|
+| Query demo v1 | Validar que el ranking piloto está cargado y puede consultarse desde PostgreSQL. |
+| Dashboard v2 | Explorar el ranking IA v2, comparar v1/v2, revisar evidencia, calidad, menciones y territorio. |
+
+Por tanto, este documento sigue siendo válido como prueba de explotación del piloto v1, pero el dashboard principal de análisis posterior pertenece a `docs/13_sevilla_ai_v2/`.
+
+No debe interpretarse que los resultados de este documento sean los más recientes del proyecto, sino el baseline consultable desde base de datos.

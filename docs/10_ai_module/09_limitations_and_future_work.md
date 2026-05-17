@@ -8,6 +8,24 @@ El objetivo es dejar claro qué se ha conseguido, qué partes deben interpretars
 
 ---
 
+## Nota de lectura
+
+Este documento conserva las limitaciones de la **IA v1 basada en Yelp**.
+
+Eso es importante porque algunas limitaciones no describen necesariamente el estado absoluto del repositorio completo, sino el alcance de esta fase concreta. Si existe una capa posterior de Sevilla / IA v2, esa capa debe leerse como evolución de este módulo, mientras que este archivo sigue funcionando como diagnóstico técnico de la versión inicial.
+
+En resumen:
+
+```text
+este documento
+→ limitaciones y trabajo futuro desde IA v1 / Yelp
+
+capas posteriores
+→ integración territorial, Sevilla, barrios, artefactos finales y entrega
+```
+
+---
+
 ## 2. Estado actual del módulo IA
 
 La cadena IA actual está completa hasta ranking v1:
@@ -23,13 +41,15 @@ reviews Yelp
 
 Se ha demostrado que el flujo es viable y produce candidatos explicables.
 
-Sin embargo, el estado actual debe entenderse como:
+Sin embargo, el estado de esta fase debe entenderse como:
 
 ```text
 prototipo funcional de la lógica IA central
 ```
 
 No como ranking final de producción para Sevilla.
+
+Si el repositorio ya incorpora una capa posterior de Sevilla / IA v2, esa capa debe considerarse la evolución territorial de esta base, no una corrección que elimine la utilidad de este documento.
 
 ---
 
@@ -57,19 +77,19 @@ Pero también introduce limitaciones:
 
 ---
 
-### 3.2. Ausencia de corpus real de Sevilla
+### 3.2. Ausencia de corpus real de Sevilla en IA v1
 
 El ranking v1 no usa reseñas reales de Sevilla.
 
-La versión final de Hidden Gems necesita conectar la lógica IA con fuentes como:
+La versión final de Hidden Gems necesita conectar, o haber conectado en una capa posterior, la lógica IA con fuentes como:
 
 - Google Places;
 - OSM / Overpass;
 - dataset oficial de barrios y distritos de Sevilla;
-- posibles reseñas o textos asociados a locales reales;
+- posibles reseñas, snippets o textos asociados a locales reales;
 - datos propios del producto si se generan en el futuro.
 
-Hasta que esto ocurra, el ranking debe considerarse un prototipo.
+Por tanto, el ranking Yelp v1 debe considerarse un prototipo técnico. Las salidas orientadas a Sevilla deben documentarse aparte para no mezclar resultados experimentales con resultados territoriales.
 
 ---
 
@@ -375,25 +395,25 @@ No como recomendaciones definitivas.
 
 ---
 
-### 8.4. No hay barrios ni distritos
+### 8.4. No hay barrios ni distritos en el ranking Yelp v1
 
-El ranking actual funciona a nivel:
+El ranking documentado en esta carpeta funciona a nivel:
 
 ```text
 negocio + plato + ciudad/estado
 ```
 
-La versión final de Hidden Gems debe funcionar a nivel:
+La versión territorial de Hidden Gems debe funcionar a nivel:
 
 ```text
 local + plato + barrio + distrito
 ```
 
-Esta es una diferencia clave.
+Esta es una diferencia clave y justifica que la integración Sevilla / barrios se documente en una capa posterior, aunque reutilice componentes de este módulo.
 
 ---
 
-## 9. Trabajo futuro: adaptación a Sevilla
+## 9. Trabajo futuro o evolución posterior: adaptación a Sevilla
 
 ### 9.1. Integrar Google Places
 
@@ -680,7 +700,9 @@ Esto permitirá reproducibilidad y auditoría.
 
 ---
 
-## 19. Priorización recomendada
+## 19. Priorización recomendada desde IA v1
+
+Esta priorización se planteó desde el cierre de la IA v1. Algunas tareas pueden estar ya completadas o movidas a capas posteriores del repositorio.
 
 ### Fase inmediata
 
@@ -713,11 +735,11 @@ La parte IA de Hidden Gems ya demuestra que el enfoque es viable.
 
 Se ha construido una cadena completa que transforma reseñas no estructuradas en candidatos de platos destacados.
 
-Sin embargo, la versión actual debe considerarse un prototipo técnico:
+Sin embargo, la versión v1 debe considerarse un prototipo técnico:
 
 ```text
 válido para demostrar lógica IA,
-no todavía para recomendaciones finales en Sevilla.
+no equivalente por sí solo a recomendaciones finales en Sevilla.
 ```
 
-La prioridad ahora es conectar esta lógica con el pipeline real de adquisición de datos, geografía oficial y locales de Sevilla.
+La prioridad tras esta fase es conectar, o documentar claramente cómo se ha conectado, esta lógica con el pipeline real de adquisición de datos, geografía oficial y locales de Sevilla.
